@@ -1,5 +1,6 @@
 # Minimal dependencies for Pathway CSV streaming only
 pandas>=2.0.0
+numpy>=1.24.0
 click>=8.1
 beartype>=0.14.0
 diskcache>=5.2.1
