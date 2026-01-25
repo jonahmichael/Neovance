@@ -74,16 +74,111 @@ This document tracks the detailed progress of the Neovance-AI NICU monitoring sy
 
 #### Dependencies Required:
 ```
-keyboard
+pandas>=2.0.0
+click>=8.1
+beartype>=0.14.0
+diskcache>=5.2.1
+typing-extensions>=4.8.0
+opentelemetry-api>=1.22.0
+opentelemetry-sdk>=1.22.0
+opentelemetry-exporter-otlp-proto-grpc>=1.22.0
+# Note: SQLite is built into Python
 ```
 
 #### Next Steps Planned:
-- Test simulator with Pathway data pipeline
-- Monitor CSV file growth and performance
-- Validate real-time data streaming
-- Consider adding more patient profiles
-- Implement data validation layer
-- Add logging to file for debugging
+- ~~Test simulator with Pathway data pipeline~~ ✓ COMPLETED
+- ~~Monitor CSV file growth and performance~~ ✓ COMPLETED
+- ~~Validate real-time data streaming~~ ✓ COMPLETED
+- Implement ML model for sepsis prediction (replace simple risk_score)
+- Add real-time alerting system based on risk thresholds
+- Consider adding more patient profiles (Baby_B, Baby_C)
+- Build data visualization dashboard
+- Add multi-patient support
+- Implement alert notification system
+
+---
+
+## Notes and Observations
+
+### Hour 5-6: Pathway ETL Pipeline with SQLite Integration
+**Time:** [Current Session]  
+**Status:** COMPLETED
+
+#### Tasks Completed:
+1. **Pathway ETL Pipeline (`etl.py`)**
+   - Created streaming ETL using Pathway framework
+   - Implemented `pw.io.csv.read()` with `mode="streaming"` to watch `data/stream.csv`
+   - Set `autocommit_duration_ms=1000` for 1-second polling
+   - Configured `InputSchema` for strict type validation
+
+2. **SQLite Database Integration**
+   - Database: `data/neovance.db` (auto-created on first run)
+   - Table: `risk_monitor` with patient vitals and calculated metrics
+   - Implemented `write_to_sqlite()` function using `pw.io.subscribe()`
+   - Added `INSERT OR IGNORE` for duplicate prevention (timestamp as primary key)
+
+3. **Risk Score Calculation**
+   - Formula: `risk_score = (HR + SpO2) / 2`
+   - Simple baseline metric for proof-of-concept
+   - Future: Replace with trained ML model for sepsis prediction
+
+4. **Database Query Utility (`query_db.py`)**
+   - Implemented `SELECT *` functionality to view all records
+   - Added `latest N` command to show recent records
+   - Statistics: Min/Max/Avg risk scores and time ranges
+   - Clean output without emojis
+
+5. **Data Security**
+   - Created `.gitignore` to protect patient data
+   - Excluded: `data/neovance.db`, `data/stream.csv`
+   - Ensures sensitive patient data never committed to git
+
+6. **Complete Data Flow:**
+   ```
+   simulator.py → stream.csv → Pathway → SQLite table → SELECT *
+   ```
+
+#### Technical Decisions:
+- **SQLite over PostgreSQL:** Simpler setup, file-based, no server required
+- **Pathway's `pw.io.subscribe()`:** Cleaner than `ConnectorSubject` classes
+- **Minimal Dependencies:** Only core Pathway libs, no heavy cloud/ML extras
+- **Real-time Processing:** 1-second latency from data generation to database
+
+#### Files Created/Modified:
+- `etl.py` (Pathway streaming pipeline)
+- `query_db.py` (Database query utility)
+- `.gitignore` (Patient data protection)
+- `requirements.txt` (Minimal dependencies)
+- `README.md` (Complete documentation)
+
+#### Database Schema:
+```sql
+CREATE TABLE risk_monitor (
+    timestamp TEXT PRIMARY KEY,
+    patient_id TEXT NOT NULL,
+    hr REAL NOT NULL,
+    spo2 REAL NOT NULL,
+    rr REAL NOT NULL,
+    temp REAL NOT NULL,
+    map REAL NOT NULL,
+    risk_score REAL NOT NULL,
+    status TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+#### Usage:
+```bash
+# Terminal 1: Start simulator
+venv/bin/python simulator.py
+
+# Terminal 2: Start ETL pipeline
+venv/bin/python etl.py
+
+# Terminal 3: Query database
+venv/bin/python query_db.py
+venv/bin/python query_db.py latest 20
+```
 
 ---
 
@@ -119,4 +214,4 @@ Each session entry should include:
 
 ---
 
-*Last Updated: January 25, 2026*
+*Last Updated: January 25, 2026 - Hour 5-6: SQLite Integration Complete*

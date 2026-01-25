@@ -9,8 +9,9 @@ import time
 from datetime import datetime
 from pathlib import Path
 import random
-import keyboard
 import threading
+import sys
+import select
 
 
 class NICUSimulator:
@@ -43,8 +44,9 @@ class NICUSimulator:
         self.csv_path = self.data_dir / "stream.csv"
         self._initialize_csv()
         
-        # Keyboard listener
-        self._setup_keyboard_listener()
+        # Input listener thread
+        self.running = True
+        self._setup_input_listener()
         
     def _initialize_csv(self):
         """Create data directory and CSV file with headers if needed."""
@@ -59,10 +61,21 @@ class NICUSimulator:
         else:
             print(f"[INFO] Appending to existing {self.csv_path}")
     
-    def _setup_keyboard_listener(self):
-        """Setup non-blocking keyboard listener for mode switching."""
-        keyboard.on_press_key('s', lambda _: self._switch_to_sepsis())
-        keyboard.on_press_key('n', lambda _: self._switch_to_normal())
+    
+    def _setup_input_listener(self):
+        """Setup non-blocking input listener for mode switching."""
+        def input_thread():
+            while self.running:
+                # Check if input is available (non-blocking)
+                if sys.stdin in select.select([sys.stdin], [], [], 0.1)[0]:
+                    line = sys.stdin.readline().strip().lower()
+                    if line == 's':
+                        self._switch_to_sepsis()
+                    elif line == 'n':
+                        self._switch_to_normal()
+        
+        thread = threading.Thread(target=input_thread, daemon=True)
+        thread.start()
     
     def _switch_to_sepsis(self):
         """Switch to SEPSIS mode and reset drift accumulators."""
@@ -158,9 +171,11 @@ class NICUSimulator:
         print("NEOVANCE-AI: NICU Monitor Simulator")
         print("="*70)
         print("Controls:")
-        print("  Press 's' → Switch to SEPSIS mode")
-        print("  Press 'n' → Switch to NORMAL mode")
+        print("  Type 's' + ENTER → Switch to SEPSIS mode")
+        print("  Type 'n' + ENTER → Switch to NORMAL mode")
         print("  Press Ctrl+C → Stop simulation")
+        print("="*70)
+        print(f"Data streaming to: {self.csv_path}")
         print("="*70 + "\n")
         
         try:
@@ -171,6 +186,7 @@ class NICUSimulator:
                 time.sleep(1.0)  # 1 second interval
                 
         except KeyboardInterrupt:
+            self.running = False
             print("\n\n[INFO] Simulation stopped. Data saved to", self.csv_path)
 
 
