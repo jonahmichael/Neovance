@@ -235,16 +235,16 @@
             background: #1d4ed8;
         }
         
-        .refreshNeovance-AI NICU Monitor</h1>
-            <p>Real-Time Patient Monitoring System</p>
-            <div id="connectionStatus" class="connection-status status-disconnected">
-                Disconnected
-            </div>
-        </div>
+        .refresh-btn:active {
+            background: #1e40af;
+        }
         
-        <div class="dashboard">
-            <div class="card">
-                <h3>
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        
         .history-table th {
             background: #f8fafc;
             padding: 12px;
@@ -268,24 +268,24 @@
         }
     </style>
 </head>
-<body>Risk Assessment</h3>
-                <div class="risk-score">
-                    <div class="risk-label">Risk Score</div>
-                    <div class="risk-value risk-ok" id="riskValue">--</div>
-                    <div>
-                        <span class="status-badge badge-ok" id="statusBadge">OK</span>
-                    </div>
-                </div>
-                <div class="timestamp">
-                    Patient: <strong id="patientId">--</strong><br>
-                    Last Update: <span id="timestamp">--</span>
-                </div>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Neovance-AI NICU Monitor</h1>
+            <p>Real-Time Patient Monitoring System</p>
+            <div id="connectionStatus" class="connection-status status-disconnected">
+                Disconnected
             </div>
         </div>
         
-        <div class="history-section">
-            <h3>Recent History (Last 30 Minutes)</h3>
-            <button onclick="loadHistory()" class="refresh-btn
+        <div class="dashboard">
+            <div class="card">
+                <h3>Vital Signs</h3>
+                <div class="vital">
+                    <span class="vital-label">Heart Rate</span>
+                    <span class="vital-value" id="hr">--<span class="vital-unit">bpm</span></span>
+                </div>
+                <div class="vital">
                     <span class="vital-label">SpO2</span>
                     <span class="vital-value" id="spo2">--<span class="vital-unit">%</span></span>
                 </div>
@@ -304,9 +304,9 @@
             </div>
             
             <div class="card">
-                <h3>🎯 Risk Assessment</h3>
+                <h3>Risk Assessment</h3>
                 <div class="risk-score">
-                    <div>Risk Score</div>
+                    <div class="risk-label">Risk Score</div>
                     <div class="risk-value risk-ok" id="riskValue">--</div>
                     <div>
                         <span class="status-badge badge-ok" id="statusBadge">OK</span>
@@ -320,8 +320,8 @@
         </div>
         
         <div class="history-section">
-            <h3>📈 Recent History (Last 30 Minutes)</h3>
-            <button onclick="loadHistory()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; margin-bottom: 15px;">
+            <h3>Recent History (Last 30 Minutes)</h3>
+            <button onclick="loadHistory()" class="refresh-btn">
                 Refresh History
             </button>
             <div style="overflow-x: auto;">
@@ -383,11 +383,11 @@
         
         function updateDashboard(data) {
             // Update vitals
-            document.getElementById('hr').innerHTML = `${data.hr}<span class="vital-unit">bpm</span>`;
-            document.getElementById('spo2').innerHTML = `${data.spo2}<span class="vital-unit">%</span>`;
-            document.getElementById('rr').innerHTML = `${data.rr}<span class="vital-unit">/min</span>`;
-            document.getElementById('temp').innerHTML = `${data.temp}<span class="vital-unit">°C</span>`;
-            document.getElementById('map').innerHTML = `${data.map}<span class="vital-unit">mmHg</span>`;
+            document.getElementById('hr').innerHTML = `${data.hr.toFixed(1)}<span class="vital-unit">bpm</span>`;
+            document.getElementById('spo2').innerHTML = `${data.spo2.toFixed(1)}<span class="vital-unit">%</span>`;
+            document.getElementById('rr').innerHTML = `${data.rr.toFixed(1)}<span class="vital-unit">/min</span>`;
+            document.getElementById('temp').innerHTML = `${data.temp.toFixed(2)}<span class="vital-unit">°C</span>`;
+            document.getElementById('map').innerHTML = `${data.map.toFixed(1)}<span class="vital-unit">mmHg</span>`;
             
             // Update risk score
             const riskValue = document.getElementById('riskValue');
@@ -439,11 +439,11 @@
                     return `
                         <tr>
                             <td>${new Date(record.timestamp).toLocaleTimeString()}</td>
-                            <td>${record.hr}</td>
-                            <td>${record.spo2}%</td>
-                            <td>${record.rr}</td>
-                            <td>${record.temp}°C</td>
-                            <td>${record.map}</td>
+                            <td>${record.hr.toFixed(1)}</td>
+                            <td>${record.spo2.toFixed(1)}%</td>
+                            <td>${record.rr.toFixed(1)}</td>
+                            <td>${record.temp.toFixed(2)}°C</td>
+                            <td>${record.map.toFixed(1)}</td>
                             <td><strong class="${statusClass}">${record.risk_score.toFixed(2)}</strong></td>
                             <td><strong class="${statusClass}">${record.status}</strong></td>
                         </tr>
