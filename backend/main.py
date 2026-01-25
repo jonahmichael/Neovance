@@ -5,8 +5,9 @@ WebSocket streaming and historical data endpoints for NICU monitoring dashboard
 
 import asyncio
 import random
+import uuid
 from datetime import datetime, timedelta
-from typing import List
+from typing import List, Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -72,6 +73,21 @@ class RiskMonitorResponse(BaseModel):
         from_attributes = True
 
 
+class ActionRequest(BaseModel):
+    """Pydantic model for clinical action submission"""
+    patient_id: str
+    action: str
+    notes: Optional[str] = None
+    timestamp: Optional[str] = None
+
+
+class ActionResponse(BaseModel):
+    """Response model for action submission"""
+    success: bool
+    message: str
+    action_id: Optional[str] = None
+
+
 # ============================================================================
 # FASTAPI APP
 # ============================================================================
@@ -93,30 +109,74 @@ app.add_middleware(
 
 
 # ============================================================================
-# MOCK DATA GENERATOR
+# GLOBAL STATE FOR SMOOTH DATA AND SEPSIS SIMULATION
 # ============================================================================
 
-def generate_mock_vitals():
-    """Generate realistic mock vital signs for 28-week premature infant"""
-    # Normal ranges for 28-week preemie
-    hr = random.gauss(145, 15)      # Heart rate: 120-170 bpm
-    spo2 = random.gauss(95, 2.5)    # SpO2: 90-100%
-    rr = random.gauss(50, 10)       # Respiratory rate: 40-60 bpm
-    temp = random.gauss(37.0, 0.5)  # Temperature: 36.5-37.5°C
-    map_val = random.gauss(35, 5)   # MAP: 30-40 mmHg
+# Global base values for smooth data generation
+global_hr_base = 80.0
+global_spo2_base = 98.0
+global_rr_base = 16.0
+global_temp_base = 37.0
+global_map_base = 35.0
+
+# Sepsis trigger state
+global_sepsis_triggered = False
+sepsis_step_counter = 0
+
+
+# ============================================================================
+# MOCK DATA GENERATOR WITH SMOOTH TRANSITIONS
+# ============================================================================
+
+def generate_smooth_vitals():
+    """
+    Generate realistic vital signs with smooth transitions.
+    Uses global base values that drift slowly, creating more realistic data.
+    """
+    global global_hr_base, global_spo2_base, global_rr_base
+    global global_temp_base, global_map_base
+    global global_sepsis_triggered, sepsis_step_counter
     
-    # Clamp values to realistic ranges
-    hr = max(100, min(180, hr))
+    # Sepsis spike logic
+    if global_sepsis_triggered and sepsis_step_counter < 5:
+        # Simulate sepsis onset: HR increases, SpO2 drops, RR increases
+        global_hr_base += random.uniform(8, 12)
+        global_spo2_base -= random.uniform(1.5, 3)
+        global_rr_base += random.uniform(3, 5)
+        global_temp_base += random.uniform(0.3, 0.5)
+        sepsis_step_counter += 1
+        print(f"[SEPSIS] Step {sepsis_step_counter}/5 - Condition worsening")
+    elif global_sepsis_triggered and sepsis_step_counter >= 5:
+        # End spike, maintain critical state
+        global_sepsis_triggered = False
+        print("[SEPSIS] Spike complete - maintaining critical state")
+    
+    # Add small random jitter to current base
+    hr = global_hr_base + random.uniform(-0.5, 0.5)
+    spo2 = global_spo2_base + random.uniform(-0.3, 0.3)
+    rr = global_rr_base + random.uniform(-0.4, 0.4)
+    temp = global_temp_base + random.uniform(-0.1, 0.1)
+    map_val = global_map_base + random.uniform(-0.5, 0.5)
+    
+    # Slowly drift back toward normal if not in sepsis
+    if not global_sepsis_triggered:
+        global_hr_base += (80.0 - global_hr_base) * 0.05
+        global_spo2_base += (98.0 - global_spo2_base) * 0.05
+        global_rr_base += (16.0 - global_rr_base) * 0.05
+        global_temp_base += (37.0 - global_temp_base) * 0.05
+        global_map_base += (35.0 - global_map_base) * 0.05
+    
+    # Clamp to realistic ranges
+    hr = max(60, min(180, hr))
     spo2 = max(85, min(100, spo2))
-    rr = max(20, min(80, rr))
-    temp = max(35.5, min(38.5, temp))
-    map_val = max(25, min(45, map_val))
+    rr = max(10, min(80, rr))
+    temp = max(35.5, min(40.0, temp))
+    map_val = max(20, min(50, map_val))
     
-    # Simple risk score calculation (for demo purposes)
-    # In production, use the weighted deviation formula
-    risk_score = abs(hr - 145) * 0.5 + abs(spo2 - 95) * 3 + abs(temp - 37) * 10
+    # Calculate risk score
+    risk_score = abs(hr - 80) * 0.5 + abs(spo2 - 98) * 3 + abs(temp - 37) * 10
     
-    # Determine status based on risk score
+    # Determine status
     if risk_score > 20:
         status = "CRITICAL"
     elif risk_score > 10:
@@ -138,9 +198,9 @@ def generate_mock_vitals():
 async def insert_mock_data_continuously():
     """
     Continuously insert mock data into the database.
-    Runs as a background task on app startup.
+    Uses smooth transitions for realistic data patterns.
     """
-    await asyncio.sleep(2)  # Wait for DB initialization
+    await asyncio.sleep(2)
     
     print("[MOCK DATA] Starting continuous data generation...")
     
@@ -148,8 +208,8 @@ async def insert_mock_data_continuously():
         try:
             db = SessionLocal()
             
-            # Generate mock vitals
-            vitals = generate_mock_vitals()
+            # Generate smooth vitals
+            vitals = generate_smooth_vitals()
             
             # Create new record
             record = RiskMonitor(
@@ -168,7 +228,7 @@ async def insert_mock_data_continuously():
             db.commit()
             db.refresh(record)
             
-            print(f"[MOCK DATA] Inserted: HR={vitals['hr']} SpO2={vitals['spo2']}% "
+            print(f"[MOCK DATA] HR={vitals['hr']} SpO2={vitals['spo2']}% "
                   f"Risk={vitals['risk_score']} {vitals['status']}")
             
             db.close()
@@ -312,7 +372,9 @@ async def root():
             "latest_timestamp": latest.timestamp if latest else None,
             "endpoints": {
                 "websocket": "/ws/live",
-                "history": "/history"
+                "history": "/history",
+                "stats": "/stats",
+                "action": "/action (POST)"
             }
         }
     finally:
@@ -361,6 +423,70 @@ async def get_statistics():
 
 
 # ============================================================================
+# ACTION LOGGING ENDPOINT
+# ============================================================================
+
+@app.post("/action", response_model=ActionResponse)
+async def log_action(action_req: ActionRequest):
+    """
+    Log a clinical action taken by medical staff.
+    Stores action details and returns confirmation.
+    """
+    try:
+        # Generate unique action ID
+        action_id = str(uuid.uuid4())[:8]
+        
+        # Use provided timestamp or current time
+        timestamp = action_req.timestamp or datetime.now().isoformat()
+        
+        # Log the action (in production, this would save to database)
+        print(f"[ACTION LOGGED] ID: {action_id}")
+        print(f"  Patient: {action_req.patient_id}")
+        print(f"  Action: {action_req.action}")
+        print(f"  Notes: {action_req.notes or 'N/A'}")
+        print(f"  Timestamp: {timestamp}")
+        
+        return ActionResponse(
+            success=True,
+            message="Action logged successfully",
+            action_id=action_id
+        )
+        
+    except Exception as e:
+        print(f"[ACTION ERROR] {e}")
+        return ActionResponse(
+            success=False,
+            message=f"Failed to log action: {str(e)}",
+            action_id=None
+        )
+
+
+# ============================================================================
+# SEPSIS TRIGGER ENDPOINT
+# ============================================================================
+
+@app.post("/trigger-sepsis")
+async def trigger_sepsis():
+    """
+    Trigger a controlled sepsis simulation spike.
+    This causes vitals to deteriorate rapidly over 15 seconds.
+    """
+    global global_sepsis_triggered, sepsis_step_counter
+    
+    global_sepsis_triggered = True
+    sepsis_step_counter = 0
+    
+    print("[SEPSIS TRIGGER] Sepsis spike initiated - 15 second demonstration")
+    
+    return {
+        "success": True,
+        "message": "Sepsis spike initiated",
+        "duration": "15 seconds (5 steps)",
+        "effects": "HR increases, SpO2 decreases, RR increases"
+    }
+
+
+# ============================================================================
 # RUN SERVER
 # ============================================================================
 
@@ -376,6 +502,7 @@ if __name__ == "__main__":
     print("  - WebSocket:     ws://localhost:8000/ws/live")
     print("  - History:       http://localhost:8000/history")
     print("  - Statistics:    http://localhost:8000/stats")
+    print("  - Log Action:    http://localhost:8000/action (POST)")
     print("  - API Docs:      http://localhost:8000/docs")
     print("="*70)
     
