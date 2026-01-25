@@ -319,9 +319,281 @@ venv/bin/python test_risk_formula.py
 
 ---
 
+---
+
+### Hour 9-10: Production API & Real-Time Dashboard
+**Time:** [Current Session]  
+**Status:** COMPLETED
+
+*Goal: Build FastAPI server with WebSocket streaming and HTML dashboard for live monitoring*
+
+#### Hour 9: FastAPI Server Implementation
+
+1. **FastAPI Server Architecture (`main.py`)**
+   - Created complete REST API with WebSocket support
+   - Implemented SQLAlchemy ORM for database models
+   - Built self-contained system with built-in mock data generator
+   - Uses separate database: `realtime_data.db` (decoupled from ETL pipeline)
+
+2. **Database Model:**
+```python
+class RiskMonitor(Base):
+    __tablename__ = "risk_monitor"
+    
+    timestamp = Column(String, primary_key=True)
+    patient_id = Column(String, nullable=False)
+    hr = Column(Float, nullable=False)       # Heart Rate
+    spo2 = Column(Float, nullable=False)     # Oxygen Saturation
+    rr = Column(Float, nullable=False)       # Respiratory Rate
+    temp = Column(Float, nullable=False)     # Temperature
+    map = Column(Float, nullable=False)      # Mean Arterial Pressure
+    risk_score = Column(Float, nullable=False)
+    status = Column(String, nullable=False)  # OK / WARNING / CRITICAL
+```
+
+3. **API Endpoints Implemented:**
+   - **`GET /`** - Health check endpoint
+   - **`WS /ws/live`** - WebSocket endpoint streaming latest vitals every 1 second
+   - **`GET /history`** - Returns last 30 minutes of monitoring data
+   - **`GET /stats`** - Statistical summary (min, max, avg for all vitals)
+   - **`GET /docs`** - Automatic interactive API documentation (Swagger UI)
+
+4. **Background Tasks:**
+   - **Mock Data Generator** (`insert_mock_data_continuously()`):
+     - Runs as asyncio background task
+     - Generates realistic vitals every 3 seconds
+     - Simulates both normal and warning/critical states
+     - Uses the same weighted deviation risk formula
+     - Self-contained for demo purposes (no simulator.py dependency)
+
+5. **WebSocket Streaming:**
+   - Maintains persistent connection with clients
+   - Pushes latest monitoring data every 1 second
+   - JSON format with all vitals + risk score + status
+   - Auto-reconnect support for resilience
+
+6. **CORS Configuration:**
+   - Enabled for all origins (`allow_origins=["*"]`)
+   - Allows credentials and all methods
+   - Permits dashboard.html to connect from file:// protocol
+
+#### Hour 10: Real-Time Dashboard Frontend
+
+1. **Dashboard Interface (`dashboard.html`)**
+   - Self-contained HTML file with embedded CSS and JavaScript
+   - WebSocket client connecting to `ws://localhost:8000/ws/live`
+   - Real-time vital signs display with visual indicators
+   - Risk score visualization with color-coded status badges
+
+2. **Dashboard Features:**
+   - **Live Monitoring Card:**
+     - Heart Rate (♥) with BPM indicator
+     - SpO2 (🫁) with percentage display
+     - Respiratory Rate (💨) with breaths/min
+     - Temperature (🌡) in Celsius
+     - Mean Arterial Pressure (💉) in mmHg
+   
+   - **Risk Score Display:**
+     - Large numerical value
+     - Color-coded status badge:
+       - 🟢 **OK** (Risk ≤ 10) - Green
+       - 🟡 **WARNING** (10 < Risk ≤ 20) - Orange
+       - 🔴 **CRITICAL** (Risk > 20) - Red
+   
+   - **Historical Data Table:**
+     - Last 30 minutes of readings
+     - Scrollable view with timestamps
+     - Status indicators for each record
+   
+   - **Connection Status:**
+     - Shows "Connected ✓" when WebSocket active
+     - Shows "Disconnected ✗" when connection lost
+     - Auto-reconnect with 3-second retry interval
+
+3. **User Interface Design:**
+   - Gradient background (deep purple to dark blue)
+   - Glass-morphism cards with backdrop blur
+   - Responsive layout with CSS Grid
+   - Professional medical dashboard aesthetic
+   - Real-time updates without page refresh
+
+#### Technical Implementation:
+
+**Mock Data Generation Logic:**
+```python
+def generate_mock_vitals():
+    # Random variation around ideal baseline
+    hr = np.random.normal(145, 8)      # Mean: 145, SD: 8
+    spo2 = np.random.normal(95, 2)     # Mean: 95, SD: 2
+    rr = np.random.normal(50, 5)       # Mean: 50, SD: 5
+    temp = np.random.normal(37.0, 0.3) # Mean: 37.0, SD: 0.3
+    map_val = np.random.normal(35, 3)  # Mean: 35, SD: 3
+    
+    # Calculate risk using the same weighted formula
+    risk_score = calculate_risk_score(hr, spo2, rr, temp, map_val)
+    status = "OK" if risk_score <= 10 else "WARNING" if risk_score <= 20 else "CRITICAL"
+```
+
+**WebSocket Streaming:**
+```python
+@app.websocket("/ws/live")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    while True:
+        latest = db.query(RiskMonitor).order_by(
+            RiskMonitor.timestamp.desc()
+        ).first()
+        await websocket.send_json({
+            "timestamp": latest.timestamp,
+            "patient_id": latest.patient_id,
+            "hr": latest.hr,
+            "spo2": latest.spo2,
+            # ... all vitals
+        })
+        await asyncio.sleep(1)  # Stream every 1 second
+```
+
+#### Dependencies Added:
+```
+fastapi>=0.104.0           # Web framework
+uvicorn[standard]>=0.24.0  # ASGI server
+sqlalchemy>=2.0.0          # ORM
+websockets>=12.0           # WebSocket support
+```
+
+#### Complete Data Flow (Production):
+```
+┌─────────────────────┐
+│   main.py Server    │
+│  (FastAPI + ASGI)   │
+├─────────────────────┤
+│ Background Task:    │
+│ Mock Data Generator │──┐
+│ (every 3 seconds)   │  │
+└─────────────────────┘  │
+                         ▼
+                  ┌──────────────────┐
+                  │ realtime_data.db │
+                  │   risk_monitor   │
+                  │      table       │
+                  └────────┬─────────┘
+                           │
+        ┌──────────────────┼──────────────────┐
+        │                  │                  │
+        ▼                  ▼                  ▼
+┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+│  WebSocket   │  │   /history   │  │    /stats    │
+│   /ws/live   │  │   endpoint   │  │   endpoint   │
+│ (1 sec push) │  │ (30 min data)│  │  (summary)   │
+└──────┬───────┘  └──────────────┘  └──────────────┘
+       │
+       ▼
+┌──────────────────┐
+│ dashboard.html   │
+│  ├─ Live Vitals  │
+│  ├─ Risk Score   │
+│  ├─ Status Badge │
+│  └─ History Table│
+└──────────────────┘
+```
+
+#### Files Created:
+- `main.py` (9.5K) - FastAPI server with WebSocket streaming
+- `dashboard.html` (7.5K) - Real-time monitoring dashboard
+- `realtime_data.db` - Auto-created SQLite database
+
+#### Files Modified:
+- `requirements.txt` - Added FastAPI, Uvicorn, SQLAlchemy, WebSockets
+
+#### Server Startup:
+```bash
+# Start the API server
+source venv/bin/activate
+python main.py
+
+# Server runs at:
+# - API: http://localhost:8000
+# - WebSocket: ws://localhost:8000/ws/live
+# - Docs: http://localhost:8000/docs
+
+# Open dashboard:
+# Simply open dashboard.html in any browser
+```
+
+#### Live Demo Output:
+```
+======================================================================
+NEOVANCE-AI: Real-Time Monitoring API Server
+======================================================================
+Starting FastAPI server with WebSocket support...
+Endpoints:
+  - Health Check:  http://localhost:8000/
+  - WebSocket:     ws://localhost:8000/ws/live
+  - History:       http://localhost:8000/history
+  - Statistics:    http://localhost:8000/stats
+  - API Docs:      http://localhost:8000/docs
+======================================================================
+INFO:     Uvicorn running on http://0.0.0.0:8000
+[STARTUP] Database tables created successfully
+[STARTUP] Mock data generator started
+[MOCK DATA] Inserted: HR=149.6 SpO2=94.8% Risk=12.19 WARNING
+[MOCK DATA] Inserted: HR=132.2 SpO2=95.0% Risk=8.57 OK
+```
+
+#### Technical Decisions:
+- **Separate Database:** `realtime_data.db` decouples API from ETL pipeline for independent operation
+- **Mock Data Generator:** Self-contained demo system doesn't require simulator.py running
+- **WebSocket over SSE:** Better for bidirectional communication, more standard for real-time dashboards
+- **SQLAlchemy ORM:** Type-safe database operations, easier maintenance than raw SQL
+- **Background Tasks:** Asyncio for non-blocking continuous data generation
+- **Single-File Dashboard:** No build tools needed, open directly in browser
+- **CORS Enabled:** Allows local file:// access and future deployment flexibility
+- **1-Second Streaming:** Balance between real-time updates and network overhead
+
+#### What Makes This Unique:
+1. 🚀 **Self-Contained Demo** - Mock data generator means no external dependencies
+2. 📡 **True Real-Time** - WebSocket streaming, not polling
+3. 🎨 **Professional UI** - Medical-grade dashboard aesthetic
+4. 📊 **Live Statistics** - Same risk formula from Hour 6-9
+5. 🔌 **API-First** - RESTful endpoints + WebSocket for maximum flexibility
+6. 📱 **Responsive** - Works on desktop and mobile browsers
+7. 🔄 **Auto-Reconnect** - Resilient WebSocket client with retry logic
+8. 📖 **Auto-Documentation** - FastAPI generates Swagger UI at /docs
+
+#### Testing Results:
+✅ Server starts successfully on http://0.0.0.0:8000  
+✅ Mock data generates every 3 seconds  
+✅ WebSocket streams data every 1 second  
+✅ Dashboard connects and displays live vitals  
+✅ Risk scores calculated correctly (OK/WARNING/CRITICAL)  
+✅ Historical data table populates with 30-minute window  
+✅ Connection status indicator works  
+✅ Auto-reconnect functions properly  
+
+#### Known Warnings (Non-Critical):
+- `MovedIn20Warning`: declarative_base() location changed in SQLAlchemy 2.0 (still works)
+- `PydanticDeprecatedSince20`: ConfigDict syntax change (cosmetic)
+- `DeprecationWarning`: on_event deprecated in favor of lifespan handlers (functional)
+
+*These warnings don't affect functionality but should be addressed in production deployment*
+
+#### Future Enhancements for API:
+1. **Authentication** - JWT tokens for secure access
+2. **Multi-Patient Support** - Support multiple Baby_A, Baby_B, Baby_C streams
+3. **Historical Replay** - Stream past data for training/demo
+4. **Alert Webhooks** - POST to external systems on CRITICAL status
+5. **Chart Endpoints** - Pre-rendered time-series charts
+6. **Export Endpoints** - Download CSV/JSON of historical data
+7. **Admin Panel** - Configure thresholds, baselines via API
+8. **Rate Limiting** - Prevent API abuse
+9. **Database Migration Tools** - Alembic for schema changes
+10. **Production Config** - Environment variables for secrets
+
+---
+
 ## Last Updated
-**Date:** January 25, 2026 - Hour 5-9: Weighted Deviation Risk Formula Complete  
-**Status:** Core functionality operational - Real-time monitoring with sophisticated risk scoring active
+**Date:** January 25, 2026 - Hour 9-10: Production API & Dashboard Complete  
+**Status:** Full-stack operational - Real-time monitoring system with WebSocket streaming and professional dashboard
 
 ---
 
@@ -338,4 +610,4 @@ Each session entry should include:
 
 ---
 
-*Last Updated: January 25, 2026 - Hour 5-6: SQLite Integration Complete*
+*Last Updated: January 25, 2026 - Hour 9-10: Production API & Dashboard Complete*
