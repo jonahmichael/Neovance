@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertTriangle } from "lucide-react";
 
 export default function ActionPanel() {
   const [patientId, setPatientId] = useState("Baby_A");
@@ -14,7 +13,6 @@ export default function ActionPanel() {
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isTriggeringSepsis, setIsTriggeringSepsis] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,115 +45,70 @@ export default function ActionPanel() {
     }
   };
 
-  const handleSepsisTrigger = async () => {
-    setIsTriggeringSepsis(true);
-    setStatus(null);
-
-    try {
-      const response = await axios.post("http://localhost:8000/trigger-sepsis");
-      
-      if (response.data.success) {
-        setStatus({
-          type: "error",
-          message: `SEPSIS SPIKE INITIATED - Monitor will show deterioration over 15 seconds`,
-        });
-      }
-    } catch (error) {
-      setStatus({
-        type: "error",
-        message: "Failed to trigger sepsis spike.",
-      });
-    } finally {
-      setTimeout(() => setIsTriggeringSepsis(false), 2000);
-    }
-  };
-
   return (
     <Card className="w-full">
       <CardHeader>
         <CardTitle className="text-xl">Clinical Action Log</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-6">
-          <div className="p-4 border-2 border-red-900/50 rounded-lg bg-red-900/10">
-            <div className="flex items-center gap-2 mb-3">
-              <AlertTriangle className="h-5 w-5 text-red-400" />
-              <h3 className="text-sm font-semibold text-red-400">Demonstration Mode</h3>
-            </div>
-            <p className="text-sm text-muted-foreground mb-4">
-              Trigger a simulated sepsis event to demonstrate real-time risk detection.
-            </p>
-            <Button
-              onClick={handleSepsisTrigger}
-              disabled={isTriggeringSepsis}
-              variant="outline"
-              className="w-full border-red-900 text-red-400 hover:bg-red-900/30"
-            >
-              {isTriggeringSepsis ? "Triggering..." : "Trigger Sepsis Spike (15s Demo)"}
-            </Button>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="patientId" className="text-sm font-medium text-muted-foreground block mb-2">
+              Patient ID
+            </label>
+            <Input
+              id="patientId"
+              value={patientId}
+              onChange={(e) => setPatientId(e.target.value)}
+              required
+              disabled={isSubmitting}
+            />
           </div>
 
-          <div className="h-px bg-border" />
+          <div>
+            <label htmlFor="action" className="text-sm font-medium text-muted-foreground block mb-2">
+              Action Taken
+            </label>
+            <Input
+              id="action"
+              placeholder="e.g., Oxygen adjusted to 30%"
+              value={action}
+              onChange={(e) => setAction(e.target.value)}
+              required
+              disabled={isSubmitting}
+            />
+          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="patientId" className="text-sm font-medium text-muted-foreground block mb-2">
-                Patient ID
-              </label>
-              <Input
-                id="patientId"
-                value={patientId}
-                onChange={(e) => setPatientId(e.target.value)}
-                required
-                disabled={isSubmitting}
-              />
+          <div>
+            <label htmlFor="notes" className="text-sm font-medium text-muted-foreground block mb-2">
+              Additional Notes
+            </label>
+            <Textarea
+              id="notes"
+              placeholder="Enter any additional observations..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              disabled={isSubmitting}
+              rows={4}
+            />
+          </div>
+
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? "Submitting..." : "Log Action"}
+          </Button>
+
+          {status && (
+            <div
+              className={`p-3 rounded-md text-sm ${
+                status.type === "success"
+                  ? "bg-green-900/30 text-green-400 border border-green-900"
+                  : "bg-red-900/30 text-red-400 border border-red-900"
+              }`}
+            >
+              {status.message}
             </div>
-
-            <div>
-              <label htmlFor="action" className="text-sm font-medium text-muted-foreground block mb-2">
-                Action Taken
-              </label>
-              <Input
-                id="action"
-                placeholder="e.g., Oxygen adjusted to 30%"
-                value={action}
-                onChange={(e) => setAction(e.target.value)}
-                required
-                disabled={isSubmitting}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="notes" className="text-sm font-medium text-muted-foreground block mb-2">
-                Additional Notes
-              </label>
-              <Textarea
-                id="notes"
-                placeholder="Enter any additional observations..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                disabled={isSubmitting}
-                rows={4}
-              />
-            </div>
-
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? "Submitting..." : "Log Action"}
-            </Button>
-
-            {status && (
-              <div
-                className={`p-3 rounded-md text-sm ${
-                  status.type === "success"
-                    ? "bg-green-900/30 text-green-400 border border-green-900"
-                    : "bg-red-900/30 text-red-400 border border-red-900"
-                }`}
-              >
-                {status.message}
-              </div>
-            )}
-          </form>
-        </div>
+          )}
+        </form>
       </CardContent>
     </Card>
   );

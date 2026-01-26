@@ -93,9 +93,9 @@ class PathwayETL:
                             'status': str(row['status'])
                         })
                         conn.commit()
-                        print(f"✓ MRN:{row['mrn']} HR:{row['hr']} SpO2:{row['spo2']}%")
+                        print(f"[OK] MRN:{row['mrn']} HR:{row['hr']} SpO2:{row['spo2']}%")
                 except Exception as e:
-                    print(f"✗ DB write error: {e}")
+                    print(f"[ERROR] DB write error: {e}")
         
         pw.io.subscribe(processed, write_to_db)
         

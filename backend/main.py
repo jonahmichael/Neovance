@@ -49,6 +49,18 @@ class User(Base):
     password = Column(String, nullable=False)
 
 
+class Staff(Base):
+    """Staff directory - doctors and nurses"""
+    __tablename__ = "staff"
+    
+    staff_id = Column(String, primary_key=True)  # DR001, NS001, etc.
+    name = Column(String, nullable=False)
+    role = Column(String, nullable=False)  # Doctor, Nurse
+    specialization = Column(String, nullable=True)
+    contact = Column(String, nullable=True)
+    shift = Column(String, nullable=True)  # Day, Night, Rotating
+
+
 class BabyProfile(Base):
     """Comprehensive neonatal profile"""
     __tablename__ = "baby_profiles"
@@ -367,6 +379,17 @@ def populate_initial_data():
         for user in users:
             db.add(user)
         
+        # Create Staff Directory
+        staff_members = [
+            Staff(staff_id="DR001", name="Dr. Rajesh Kumar", role="Doctor", specialization="Neonatology", contact="+91-9876500001", shift="Day"),
+            Staff(staff_id="DR002", name="Dr. Priya Sharma", role="Doctor", specialization="Pediatric Cardiology", contact="+91-9876500002", shift="Night"),
+            Staff(staff_id="NS001", name="Anjali Patel", role="Nurse", specialization="NICU Care", contact="+91-9876500003", shift="Day"),
+            Staff(staff_id="NS002", name="Deepika Singh", role="Nurse", specialization="Critical Care", contact="+91-9876500004", shift="Rotating"),
+        ]
+        
+        for staff in staff_members:
+            db.add(staff)
+        
         # Create Baby Profiles with Indian names
         babies = [
             BabyProfile(
@@ -675,6 +698,19 @@ async def startup_event():
 # ============================================================================
 # BABY PROFILE ENDPOINTS
 # ============================================================================
+
+@app.get("/staff")
+async def get_all_staff():
+    """Get all staff members"""
+    db = SessionLocal()
+    try:
+        staff = db.query(Staff).all()
+        return [{"staff_id": s.staff_id, "name": s.name, "role": s.role, 
+                 "specialization": s.specialization, "contact": s.contact, "shift": s.shift} 
+                for s in staff]
+    finally:
+        db.close()
+
 
 @app.get("/babies")
 async def get_all_babies():
