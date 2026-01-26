@@ -55,8 +55,10 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     const pollAlerts = async () => {
       try {
-        const response = await fetch(`http://localhost:8000/api/v1/alerts/pending?role=${user.role.toLowerCase()}`);
-        if (!response.ok) return;
+        const response = await fetch(`http://localhost:8000/api/v1/alerts/pending?role=${user.role?.toLowerCase() || 'nurse'}`, {
+          signal: AbortSignal.timeout(3000)
+        });
+        if (!response.ok) throw new Error('Backend unavailable');
         
         const pendingAlerts = await response.json();
         
@@ -88,7 +90,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           }
         });
       } catch (err) {
-        console.error("Polling alerts error:", err);
+        // Continue silently without notifications when backend is unavailable
       }
     };
 

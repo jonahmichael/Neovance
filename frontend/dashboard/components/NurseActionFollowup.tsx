@@ -102,7 +102,7 @@ export default function NurseActionFollowup({ alert, onComplete }: NurseActionFo
               <Checkbox 
                 id={lab} 
                 checked={completedLabs.includes(lab)}
-                onCheckedChange={(checked) => {
+                onCheckedChange={(checked: boolean) => {
                   if (checked) setCompletedLabs([...completedLabs, lab]);
                   else setCompletedLabs(completedLabs.filter(l => l !== lab));
                 }}
@@ -136,7 +136,7 @@ export default function NurseActionFollowup({ alert, onComplete }: NurseActionFo
               <Checkbox 
                 id={med} 
                 checked={completedMeds.includes(med)}
-                onCheckedChange={(checked) => {
+                onCheckedChange={(checked: boolean) => {
                   if (checked) setCompletedMeds([...completedMeds, med]);
                   else setCompletedMeds(completedMeds.filter(a => a !== med));
                 }}

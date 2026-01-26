@@ -204,7 +204,7 @@ export default function CriticalActionPanel({ alert, doctorId, onActionTaken, on
                       <Checkbox 
                         id={lab} 
                         checked={selectedLabs.includes(lab)}
-                        onCheckedChange={(checked) => {
+                        onCheckedChange={(checked: boolean) => {
                           if (checked) setSelectedLabs([...selectedLabs, lab]);
                           else setSelectedLabs(selectedLabs.filter(l => l !== lab));
                         }}

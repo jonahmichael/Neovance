@@ -11,3 +11,7 @@ npm run dev
 curl -X POST http://localhost:8000/api/v1/predict_sepsis \
   -H "Content-Type: application/json" \
   -d '{"baby_id":"B001","features":{"hr":160,"spo2":92,"rr":55,"temp":38.2,"map":35}}'
+
+  ---
+
+  

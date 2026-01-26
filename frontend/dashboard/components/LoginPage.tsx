@@ -112,6 +112,35 @@ export default function LoginPage() {
                 )}
               </Button>
             </form>
+
+            {/* Quick Login Options */}
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <p className="text-xs text-gray-500 mb-3 font-sans">Quick Access:</p>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setUserId('DR001');
+                    setPassword('password@dr');
+                  }}
+                  className="text-xs py-2 text-blue-600 border-blue-200 hover:bg-blue-50 font-sans"
+                >
+                  Doctor Login
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setUserId('NS001');
+                    setPassword('password@ns');
+                  }}
+                  className="text-xs py-2 text-green-600 border-green-200 hover:bg-green-50 font-sans"
+                >
+                  Nurse Login
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
 

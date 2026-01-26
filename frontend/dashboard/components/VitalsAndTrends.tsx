@@ -15,6 +15,7 @@ import {
 } from "chart.js";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import CriticalActionPanel from "@/components/CriticalActionPanel";
+import { useNotifications } from "@/contexts/NotificationContext";
 import { Heart, Activity, Wind, Thermometer, Gauge, TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle2, AlertCircle, Zap } from "lucide-react";
 
 ChartJS.register(
@@ -164,6 +165,39 @@ export default function VitalsAndTrends() {
   const [viewMode, setViewMode] = useState<"simple" | "detailed">("simple");
   const [sepsisTriggered, setSepsisTriggered] = useState(false);
   const [currentTime, setCurrentTime] = useState("");
+  const [useFallbackData, setUseFallbackData] = useState(true);
+  const [isHighRisk, setIsHighRisk] = useState(false);
+  const { setActiveSepsisAlert } = useNotifications();
+
+  const generateFallbackVitals = (isHighRisk: boolean): VitalData => {
+    const now = new Date().toISOString();
+    
+    if (isHighRisk) {
+      // High-risk/sepsis vitals
+      return {
+        timestamp: now,
+        hr: 190 + Math.random() * 20,     // 190-210 bpm (tachycardia)
+        spo2: 82 + Math.random() * 5,     // 82-87% (hypoxia)
+        rr: 75 + Math.random() * 15,      // 75-90 breaths/min (tachypnea) 
+        temp: 38.2 + Math.random() * 1.0, // 38.2-39.2°C (fever)
+        map: 22 + Math.random() * 8,      // 22-30 mmHg (hypotension)
+        risk_score: 0.85 + Math.random() * 0.1, // High risk score
+        status: "CRITICAL"
+      };
+    } else {
+      // Normal/low-moderate risk vitals
+      return {
+        timestamp: now,
+        hr: 130 + Math.random() * 25,     // 130-155 bpm (normal range)
+        spo2: 92 + Math.random() * 4,     // 92-96% (normal target)
+        rr: 40 + Math.random() * 15,      // 40-55 breaths/min (normal)
+        temp: 36.7 + Math.random() * 0.6, // 36.7-37.3°C (normal)
+        map: 35 + Math.random() * 15,     // 35-50 mmHg (normal)
+        risk_score: 0.15 + Math.random() * 0.25, // Low-moderate risk
+        status: "OK"
+      };
+    }
+  };
 
   useEffect(() => {
     // Set initial time on client side to avoid hydration mismatch
@@ -174,20 +208,78 @@ export default function VitalsAndTrends() {
     return () => clearInterval(timer);
   }, []);
 
+  // Fallback data generation when backend is unavailable
+  useEffect(() => {
+    if (useFallbackData) {
+      const generateInitialData = () => {
+        const initialData: VitalData[] = [];
+        for (let i = 29; i >= 0; i--) {
+          const timestamp = new Date(Date.now() - i * 10000).toISOString(); // 10 second intervals
+          const vitals = generateFallbackVitals(false); // Start with normal vitals
+          initialData.push({...vitals, timestamp});
+        }
+        setData(initialData);
+        setLatestData(initialData[initialData.length - 1]);
+      };
+
+      generateInitialData();
+      
+      // Update vitals every 3 seconds with appropriate risk level
+      const fallbackInterval = setInterval(() => {
+        const newVitals = generateFallbackVitals(isHighRisk);
+        setLatestData(newVitals);
+        setData(prev => {
+          const updated = [...prev, newVitals];
+          return updated.slice(-60); // Keep last 60 data points
+        });
+      }, 3000);
+
+      return () => clearInterval(fallbackInterval);
+    }
+  }, [useFallbackData, isHighRisk]);
+
   const triggerSepsis = async () => {
     try {
       setSepsisTriggered(true);
+      setIsHighRisk(true); // Switch to high-risk vitals
+      
       const response = await fetch("http://localhost:8000/trigger-sepsis", {
         method: "POST",
       });
       if (response.ok) {
         console.log("Sepsis triggered successfully");
-        setTimeout(() => setSepsisTriggered(false), 10000); // Reset after 10 seconds
       }
+      
+      // Reset to normal vitals after 30 seconds
+      setTimeout(() => {
+        setSepsisTriggered(false);
+        setIsHighRisk(false);
+      }, 30000);
     } catch (error) {
       console.error("Failed to trigger sepsis:", error);
       setSepsisTriggered(false);
+      // Still switch to high-risk vitals even if backend fails
+      setTimeout(() => {
+        setIsHighRisk(false);
+      }, 30000);
     }
+  };
+
+  const triggerTestAlert = () => {
+    // Manually trigger CriticalActionPanel for testing
+    setActiveSepsisAlert({
+      alert_id: 999,
+      baby_id: "B001",
+      model_risk_score: 0.875,
+      alert_status: "PENDING_DOCTOR_ACTION",
+      timestamp: new Date().toISOString(),
+      doctor_action: null,
+      action_detail: null,
+      observation_duration: null,
+      lab_tests: null,
+      antibiotics: null,
+      updated_at: new Date().toISOString()
+    });
   };
 
   // Helper functions for user-friendly status
@@ -258,6 +350,11 @@ export default function VitalsAndTrends() {
   const getOverallStability = (): { status: "stable" | "caution" | "alert"; message: string } => {
     if (!latestData) return { status: "stable", message: "Awaiting data..." };
     
+    // If in high-risk mode due to sepsis trigger, always show alert
+    if (isHighRisk) {
+      return { status: "alert", message: "SEPSIS PROTOCOL ACTIVE - Critical intervention required" };
+    }
+    
     const issues: string[] = [];
     if (latestData.hr < 100 || latestData.hr > 180) issues.push("Heart rate");
     if (latestData.spo2 < 88) issues.push("Oxygen");
@@ -273,12 +370,23 @@ export default function VitalsAndTrends() {
   useEffect(() => {
     let ws: WebSocket;
     let reconnectTimeout: NodeJS.Timeout;
+    let connectionCheckTimeout: NodeJS.Timeout;
 
     const connect = () => {
       ws = new WebSocket("ws://localhost:8000/ws/live");
 
+      // If connection doesn't open in 5 seconds, use fallback data
+      connectionCheckTimeout = setTimeout(() => {
+        if (ws.readyState !== WebSocket.OPEN) {
+          setWsStatus("Using Fallback Data");
+          setUseFallbackData(true);
+        }
+      }, 5000);
+
       ws.onopen = () => {
         setWsStatus("Connected");
+        setUseFallbackData(false); // Disable fallback when real connection established
+        if (connectionCheckTimeout) clearTimeout(connectionCheckTimeout);
       };
 
       ws.onmessage = (event) => {
@@ -291,11 +399,13 @@ export default function VitalsAndTrends() {
       };
 
       ws.onerror = () => {
-        setWsStatus("Error");
+        setWsStatus("Error - Using Fallback");
+        setUseFallbackData(true);
       };
 
       ws.onclose = () => {
         setWsStatus("Reconnecting...");
+        setUseFallbackData(true);
         reconnectTimeout = setTimeout(connect, 3000);
       };
     };
@@ -305,6 +415,7 @@ export default function VitalsAndTrends() {
     return () => {
       if (ws) ws.close();
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (connectionCheckTimeout) clearTimeout(connectionCheckTimeout);
     };
   }, []);
 
@@ -424,6 +535,11 @@ export default function VitalsAndTrends() {
           <span className={`text-sm px-2 py-1 rounded ${wsStatus === "Connected" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
             {wsStatus}
           </span>
+          {isHighRisk && (
+            <span className="text-sm px-2 py-1 rounded bg-red-100 text-red-700 font-medium animate-pulse">
+              High Risk Mode
+            </span>
+          )}
           <button
             onClick={triggerSepsis}
             disabled={sepsisTriggered}
