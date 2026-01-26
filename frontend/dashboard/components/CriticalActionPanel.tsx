@@ -121,7 +121,7 @@ export default function CriticalActionPanel() {
     // Notify the nurse with detailed information
     addNotification({
       type: 'CRITICAL_ACTION',
-      message: `🏥 Dr. ${user?.displayName || 'Doctor'} decided: ${actionLabel}`,
+      message: `Dr. ${user?.displayName || 'Doctor'} decided: ${actionLabel}`,
       details: {
         doctor: user?.displayName || 'Dr. Unknown',
         doctorId: user?.userId || '',
