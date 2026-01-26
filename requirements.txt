@@ -1,7 +1,7 @@
-# Pathway streaming framework
-pathway>=0.7.0
+# Neovance AI - NICU Monitoring with EOS Risk Calculator
+# Core dependencies for validated clinical decision support
 
-# Data processing
+# Data processing and scientific computing
 pandas>=2.0.0
 numpy>=1.24.0
 
@@ -13,12 +13,18 @@ websockets>=12.0
 
 # Utilities
 click>=8.1
-beartype>=0.14.0
-diskcache>=5.2.1
 typing-extensions>=4.8.0
 
-# Observability (optional)
-opentelemetry-api>=1.22.0
-opentelemetry-sdk>=1.22.0
-opentelemetry-exporter-otlp-proto-grpc>=1.22.0
+# Optional: Pathway streaming framework (if available)
+# pathway>=0.7.0
+# beartype>=0.14.0
+# diskcache>=5.2.1
+
+# Optional: Observability
+# opentelemetry-api>=1.22.0
+# opentelemetry-sdk>=1.22.0
+# opentelemetry-exporter-otlp-proto-grpc>=1.22.0
+
+# EOS Risk Calculator - No additional dependencies required
+# Uses only Python standard library: math, csv, sqlite3
 

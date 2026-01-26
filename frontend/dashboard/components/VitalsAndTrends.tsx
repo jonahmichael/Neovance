@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Line, Scatter } from "react-chartjs-2";
+import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -38,7 +38,7 @@ interface VitalData {
   status: string;
 }
 
-type ChartType = "hr" | "spo2" | "rr" | "temp" | "map" | "all" | "hr-spo2" | "hr-rr" | "rr-spo2" | "temp-hr" | "map-hr";
+type ChartType = "hr" | "spo2" | "rr" | "temp" | "map" | "all";
 
 interface ClinicalRange {
   normal: string;
@@ -49,14 +49,11 @@ interface ChartConfig {
   id: ChartType;
   name: string;
   description: string;
-  category: "time-series" | "correlation";
+  category: "time-series";
   xLabel: string;
   yLabel: string;
   icon: React.ReactNode;
   color: string;
-  clinicalUse?: string;
-  normalPattern?: string;
-  abnormalPattern?: string;
   ranges?: ClinicalRange;
 }
 
@@ -155,107 +152,6 @@ const CHART_CONFIGS: ChartConfig[] = [
     }
   },
   { id: "all", name: "All Vitals", description: "Combined view of all vital signs", category: "time-series", xLabel: "Time", yLabel: "Value", icon: <TrendingUp className="h-4 w-4" />, color: "rgb(99, 102, 241)" },
-  // Correlation Charts - Enhanced with clinical context
-  { 
-    id: "hr-spo2", 
-    name: "Apnea Detection", 
-    description: "When HR drops WITH SpO2 drop = Apnea event", 
-    category: "correlation", 
-    xLabel: "Heart Rate (bpm)", 
-    yLabel: "SpO2 (%)", 
-    icon: <Heart className="h-4 w-4" />, 
-    color: "rgb(236, 72, 153)",
-    clinicalUse: "Detect apnea episodes in neonates",
-    normalPattern: "HR 120-160 with SpO2 90-95%",
-    abnormalPattern: "HR <100 + SpO2 <85 = APNEA",
-    ranges: {
-      normal: "HR stable (120-160) with SpO2 90-95%",
-      abnormal: [
-        { label: "Apnea", value: "HR drop + SpO2 drop", severity: "critical" },
-        { label: "Resp Distress", value: "HR >180 + SpO2 drop", severity: "warning" }
-      ]
-    }
-  },
-  { 
-    id: "hr-rr", 
-    name: "Sepsis Pattern", 
-    description: "High HR + High RR together = Possible sepsis", 
-    category: "correlation", 
-    xLabel: "Heart Rate (bpm)", 
-    yLabel: "Resp Rate (/min)", 
-    icon: <Activity className="h-4 w-4" />, 
-    color: "rgb(14, 165, 233)",
-    clinicalUse: "Early sepsis detection",
-    normalPattern: "Parallel rise/fall within normal ranges",
-    abnormalPattern: "HR >180 + RR >70 = STRESS/SEPSIS",
-    ranges: {
-      normal: "HR 120-160 with RR 30-60",
-      abnormal: [
-        { label: "Stress/Sepsis", value: "HR >180 + RR >70", severity: "critical" },
-        { label: "Apnea/CNS", value: "RR drop + HR drop", severity: "critical" }
-      ]
-    }
-  },
-  { 
-    id: "rr-spo2", 
-    name: "Lung Function", 
-    description: "Fast breathing but low oxygen = Lung problem", 
-    category: "correlation", 
-    xLabel: "Resp Rate (/min)", 
-    yLabel: "SpO2 (%)", 
-    icon: <Wind className="h-4 w-4" />, 
-    color: "rgb(132, 204, 22)",
-    clinicalUse: "Assess ventilation efficiency",
-    normalPattern: "RR 30-60 with SpO2 90-95%",
-    abnormalPattern: "RR >70 + SpO2 <90 = RESP FAILURE",
-    ranges: {
-      normal: "RR 30-60 with SpO2 90-95%",
-      abnormal: [
-        { label: "Resp Failure", value: "RR high + SpO2 low", severity: "critical" },
-        { label: "Periodic Breathing", value: "RR irregular + desats", severity: "warning" }
-      ]
-    }
-  },
-  { 
-    id: "temp-hr", 
-    name: "Infection Check", 
-    description: "Fever + Fast heart = Likely infection", 
-    category: "correlation", 
-    xLabel: "Temperature (C)", 
-    yLabel: "Heart Rate (bpm)", 
-    icon: <Thermometer className="h-4 w-4" />, 
-    color: "rgb(251, 146, 60)",
-    clinicalUse: "Fever and infection correlation",
-    normalPattern: "Temp 36.5-37.5 C with HR 120-160",
-    abnormalPattern: "Temp >38 + HR >180 = FEVER/SEPSIS",
-    ranges: {
-      normal: "Temp 36.5-37.5 C with HR 120-160",
-      abnormal: [
-        { label: "Fever/Sepsis", value: "Temp >38 + HR high", severity: "critical" },
-        { label: "Hypothermia", value: "Temp <36.5 + HR low", severity: "warning" }
-      ]
-    }
-  },
-  { 
-    id: "map-hr", 
-    name: "Shock Detection", 
-    description: "Low BP + Fast heart = Body compensating for shock", 
-    category: "correlation", 
-    xLabel: "Blood Pressure MAP (mmHg)", 
-    yLabel: "Heart Rate (bpm)", 
-    icon: <Gauge className="h-4 w-4" />, 
-    color: "rgb(45, 212, 191)",
-    clinicalUse: "Detect early shock",
-    normalPattern: "MAP 30-40 (preterm) with HR 120-160",
-    abnormalPattern: "MAP <30 + HR >180 = SHOCK",
-    ranges: {
-      normal: "MAP stable with HR 120-160",
-      abnormal: [
-        { label: "Shock", value: "MAP <30 + HR high", severity: "critical" },
-        { label: "Decompensation", value: "MAP low + HR low", severity: "critical" }
-      ]
-    }
-  },
 ];
 
 export default function VitalsAndTrends() {
@@ -417,90 +313,39 @@ export default function VitalsAndTrends() {
     },
   });
 
-  const getScatterOptions = (config: ChartConfig) => ({
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false },
-      title: { display: true, text: `${config.name} - ${config.description}`, color: "rgb(51, 65, 85)", font: { size: 14 } },
-    },
-    scales: {
-      x: { title: { display: true, text: config.xLabel, color: "rgb(100, 116, 139)" }, ticks: { color: "rgb(100, 116, 139)" }, grid: { color: "rgba(100, 116, 139, 0.1)" } },
-      y: { title: { display: true, text: config.yLabel, color: "rgb(100, 116, 139)" }, ticks: { color: "rgb(100, 116, 139)" }, grid: { color: "rgba(100, 116, 139, 0.1)" } },
-    },
-  });
-
   const renderChart = () => {
     const config = CHART_CONFIGS.find((c) => c.id === selectedChart)!;
 
-    if (config.category === "time-series") {
-      let datasets: { label: string; data: number[]; borderColor: string; backgroundColor: string; tension: number; fill: boolean; pointRadius: number }[] = [];
+    let datasets: { label: string; data: number[]; borderColor: string; backgroundColor: string; tension: number; fill: boolean; pointRadius: number }[] = [];
 
-      switch (selectedChart) {
-        case "hr":
-          datasets = [{ label: "Heart Rate", data: data.map((d) => d.hr), borderColor: "rgb(239, 68, 68)", backgroundColor: "rgba(239, 68, 68, 0.1)", tension: 0.3, fill: true, pointRadius: 2 }];
-          break;
-        case "spo2":
-          datasets = [{ label: "SpO2", data: data.map((d) => d.spo2), borderColor: "rgb(168, 85, 247)", backgroundColor: "rgba(168, 85, 247, 0.1)", tension: 0.3, fill: true, pointRadius: 2 }];
-          break;
-        case "rr":
-          datasets = [{ label: "Respiratory Rate", data: data.map((d) => d.rr), borderColor: "rgb(59, 130, 246)", backgroundColor: "rgba(59, 130, 246, 0.1)", tension: 0.3, fill: true, pointRadius: 2 }];
-          break;
-        case "temp":
-          datasets = [{ label: "Temperature", data: data.map((d) => d.temp), borderColor: "rgb(249, 115, 22)", backgroundColor: "rgba(249, 115, 22, 0.1)", tension: 0.3, fill: true, pointRadius: 2 }];
-          break;
-        case "map":
-          datasets = [{ label: "MAP", data: data.map((d) => d.map), borderColor: "rgb(34, 197, 94)", backgroundColor: "rgba(34, 197, 94, 0.1)", tension: 0.3, fill: true, pointRadius: 2 }];
-          break;
-        case "all":
-          datasets = [
-            { label: "HR", data: data.map((d) => d.hr), borderColor: "rgb(239, 68, 68)", backgroundColor: "transparent", tension: 0.3, fill: false, pointRadius: 0 },
-            { label: "SpO2", data: data.map((d) => d.spo2), borderColor: "rgb(168, 85, 247)", backgroundColor: "transparent", tension: 0.3, fill: false, pointRadius: 0 },
-            { label: "RR", data: data.map((d) => d.rr), borderColor: "rgb(59, 130, 246)", backgroundColor: "transparent", tension: 0.3, fill: false, pointRadius: 0 },
-            { label: "Temp x10", data: data.map((d) => d.temp * 2.5), borderColor: "rgb(249, 115, 22)", backgroundColor: "transparent", tension: 0.3, fill: false, pointRadius: 0 },
-            { label: "MAP", data: data.map((d) => d.map), borderColor: "rgb(34, 197, 94)", backgroundColor: "transparent", tension: 0.3, fill: false, pointRadius: 0 },
-          ];
-          break;
-      }
-
-      return <Line data={{ labels: getTimeLabels(), datasets }} options={getChartOptions(config)} />;
-    } else {
-      // Correlation / Scatter charts
-      let scatterData: { x: number; y: number }[] = [];
-      
-      switch (selectedChart) {
-        case "hr-spo2":
-          scatterData = data.map((d) => ({ x: d.hr, y: d.spo2 }));
-          break;
-        case "hr-rr":
-          scatterData = data.map((d) => ({ x: d.hr, y: d.rr }));
-          break;
-        case "rr-spo2":
-          scatterData = data.map((d) => ({ x: d.rr, y: d.spo2 }));
-          break;
-        case "temp-hr":
-          scatterData = data.map((d) => ({ x: d.temp, y: d.hr }));
-          break;
-        case "map-hr":
-          scatterData = data.map((d) => ({ x: d.map, y: d.hr }));
-          break;
-      }
-
-      return (
-        <Scatter
-          data={{
-            datasets: [{
-              label: config.name,
-              data: scatterData,
-              backgroundColor: config.color,
-              pointRadius: 6,
-              pointHoverRadius: 8,
-            }],
-          }}
-          options={getScatterOptions(config)}
-        />
-      );
+    switch (selectedChart) {
+      case "hr":
+        datasets = [{ label: "Heart Rate", data: data.map((d) => d.hr), borderColor: "rgb(239, 68, 68)", backgroundColor: "rgba(239, 68, 68, 0.1)", tension: 0.3, fill: true, pointRadius: 2 }];
+        break;
+      case "spo2":
+        datasets = [{ label: "SpO2", data: data.map((d) => d.spo2), borderColor: "rgb(168, 85, 247)", backgroundColor: "rgba(168, 85, 247, 0.1)", tension: 0.3, fill: true, pointRadius: 2 }];
+        break;
+      case "rr":
+        datasets = [{ label: "Respiratory Rate", data: data.map((d) => d.rr), borderColor: "rgb(59, 130, 246)", backgroundColor: "rgba(59, 130, 246, 0.1)", tension: 0.3, fill: true, pointRadius: 2 }];
+        break;
+      case "temp":
+        datasets = [{ label: "Temperature", data: data.map((d) => d.temp), borderColor: "rgb(249, 115, 22)", backgroundColor: "rgba(249, 115, 22, 0.1)", tension: 0.3, fill: true, pointRadius: 2 }];
+        break;
+      case "map":
+        datasets = [{ label: "MAP", data: data.map((d) => d.map), borderColor: "rgb(34, 197, 94)", backgroundColor: "rgba(34, 197, 94, 0.1)", tension: 0.3, fill: true, pointRadius: 2 }];
+        break;
+      case "all":
+        datasets = [
+          { label: "HR", data: data.map((d) => d.hr), borderColor: "rgb(239, 68, 68)", backgroundColor: "transparent", tension: 0.3, fill: false, pointRadius: 0 },
+          { label: "SpO2", data: data.map((d) => d.spo2), borderColor: "rgb(168, 85, 247)", backgroundColor: "transparent", tension: 0.3, fill: false, pointRadius: 0 },
+          { label: "RR", data: data.map((d) => d.rr), borderColor: "rgb(59, 130, 246)", backgroundColor: "transparent", tension: 0.3, fill: false, pointRadius: 0 },
+          { label: "Temp x10", data: data.map((d) => d.temp * 2.5), borderColor: "rgb(249, 115, 22)", backgroundColor: "transparent", tension: 0.3, fill: false, pointRadius: 0 },
+          { label: "MAP", data: data.map((d) => d.map), borderColor: "rgb(34, 197, 94)", backgroundColor: "transparent", tension: 0.3, fill: false, pointRadius: 0 },
+        ];
+        break;
     }
+
+    return <Line data={{ labels: getTimeLabels(), datasets }} options={getChartOptions(config)} />;
   };
 
   const getStatusColor = (status: string) => {
@@ -837,61 +682,33 @@ export default function VitalsAndTrends() {
               })()}
             </CardContent>
           </Card>
-
-          {/* Recent Events Timeline */}
-          <Card className="shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Health Timeline (Last 10 readings)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-1">
-                {data.slice(-10).map((d, idx) => {
-                  const hasIssue = d.hr < 100 || d.hr > 180 || d.spo2 < 88 || d.rr < 30 || d.rr > 70 || d.temp < 36.5 || d.temp > 37.5;
-                  const severe = d.hr < 60 || d.spo2 < 80 || d.map < 25;
-                  return (
-                    <div 
-                      key={idx}
-                      className={`flex-1 h-8 rounded flex items-center justify-center text-xs font-medium ${
-                        severe ? "bg-red-200 text-red-700" :
-                        hasIssue ? "bg-amber-200 text-amber-700" :
-                        "bg-green-200 text-green-700"
-                      }`}
-                      title={new Date(d.timestamp).toLocaleTimeString()}
-                    >
-                      {severe ? "!" : hasIssue ? "?" : "OK"}
-                    </div>
-                  );
-                })}
-                {data.length < 10 && Array(10 - data.length).fill(0).map((_, idx) => (
-                  <div key={`empty-${idx}`} className="flex-1 h-8 rounded bg-slate-100" />
-                ))}
-              </div>
-              <div className="flex justify-between text-xs text-muted-foreground mt-2">
-                <span>Older</span>
-                <div className="flex items-center gap-3">
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-green-500" /> Stable</span>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-amber-500" /> Monitor</span>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-red-500" /> Alert</span>
-                </div>
-                <span>Now</span>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       )}
 
       {/* Detailed View - Charts */}
       {viewMode === "detailed" && (
         <>
-      {/* Status and Risk Score */}
+      {/* EOS Risk Score and Clinical Status */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           {latestData && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Risk Score:</span>
-              <span className={`text-lg font-bold px-3 py-1 rounded ${getStatusColor(latestData.status)}`}>
-                {latestData.risk_score.toFixed(2)} - {latestData.status}
-              </span>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">EOS Risk Score:</span>
+                <span className={`text-lg font-bold px-3 py-1 rounded ${getStatusColor(latestData.status)}`}>
+                  {latestData.risk_score.toFixed(2)}/1000
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Clinical Status:</span>
+                <span className={`text-sm font-semibold px-2 py-1 rounded text-white ${
+                  latestData.status === "HIGH_RISK" ? "bg-red-600" :
+                  latestData.status === "ENHANCED_MONITORING" ? "bg-orange-500" :
+                  latestData.status === "ROUTINE_CARE" ? "bg-green-600" : "bg-gray-500"
+                }`}>
+                  {latestData.status.replace("_", " ")}
+                </span>
+              </div>
             </div>
           )}
         </div>
@@ -902,6 +719,43 @@ export default function VitalsAndTrends() {
           Customize Chart
         </button>
       </div>
+
+      {/* EOS Risk Information Panel */}
+      {latestData && (
+        <Card className="shadow-sm border-l-4 border-l-blue-500">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <span className="w-5 h-5 bg-blue-600 text-white rounded flex items-center justify-center text-xs">EOS</span>
+              Puopolo/Kaiser Early-Onset Sepsis Risk Calculator
+              <a 
+                href="https://www.mdcalc.com/calc/10528/neonatal-early-onset-sepsis-calculator?uuid=e367f52f-d7c7-4373-8d37-026457008847&utm_source=mdcalc"
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="ml-auto text-blue-600 hover:text-blue-800 text-xs"
+                title="View on MDCalc"
+              >
+                📚 Reference
+              </a>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-3 text-xs">
+              <div className="p-2 rounded-lg bg-green-50 border border-green-200">
+                <p className="font-bold text-green-800 mb-1">Low Risk (&lt;1/1000)</p>
+                <p className="text-green-700">Routine newborn care</p>
+              </div>
+              <div className="p-2 rounded-lg bg-orange-50 border border-orange-200">
+                <p className="font-bold text-orange-800 mb-1">Moderate Risk (1-3/1000)</p>
+                <p className="text-orange-700">Enhanced monitoring</p>
+              </div>
+              <div className="p-2 rounded-lg bg-red-50 border border-red-200">
+                <p className="font-bold text-red-800 mb-1">High Risk (≥3/1000)</p>
+                <p className="text-red-700">Consider antibiotics</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Chart Selector */}
       {showChartSelector && (
@@ -933,38 +787,6 @@ export default function VitalsAndTrends() {
                   ))}
                 </div>
               </div>
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <h4 className="text-sm font-semibold text-muted-foreground">Pattern Analysis Charts</h4>
-                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Clinical Patterns</span>
-                </div>
-                <p className="text-xs text-muted-foreground mb-3">These charts help detect specific clinical conditions by showing how two vitals relate to each other.</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {CHART_CONFIGS.filter((c) => c.category === "correlation").map((config) => (
-                    <button
-                      key={config.id}
-                      onClick={() => { setSelectedChart(config.id); setShowChartSelector(false); }}
-                      className={`p-4 rounded-lg border text-left transition-all ${
-                        selectedChart === config.id
-                          ? "border-primary bg-primary/10 ring-2 ring-primary/20"
-                          : "border-border hover:border-primary/50 hover:bg-muted/50"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-2">
-                        <span style={{ color: config.color }}>{config.icon}</span>
-                        <span className="font-semibold text-sm">{config.name}</span>
-                      </div>
-                      <p className="text-xs font-medium text-foreground mb-2">{config.description}</p>
-                      {config.clinicalUse && (
-                        <div className="space-y-1 pt-2 border-t border-border/50">
-                          <p className="text-xs text-green-600">Normal: {config.normalPattern}</p>
-                          <p className="text-xs text-red-600">Alert: {config.abnormalPattern}</p>
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
           </CardContent>
         </Card>
@@ -978,9 +800,6 @@ export default function VitalsAndTrends() {
               <span style={{ color: currentConfig.color }}>{currentConfig.icon}</span>
               <CardTitle className="text-lg">{currentConfig.name}</CardTitle>
             </div>
-            {currentConfig.category === "correlation" && (
-              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Pattern Analysis</span>
-            )}
           </div>
           <p className="text-sm text-muted-foreground mt-1">{currentConfig.description}</p>
         </CardHeader>
@@ -1035,14 +854,6 @@ export default function VitalsAndTrends() {
                   </div>
                 </div>
               </div>
-              {/* Correlation Chart Additional Info */}
-              {currentConfig.category === "correlation" && currentConfig.clinicalUse && (
-                <div className="mt-3 pt-3 border-t border-slate-200">
-                  <p className="text-xs text-slate-600">
-                    <span className="font-semibold">Clinical Use:</span> {currentConfig.clinicalUse}
-                  </p>
-                </div>
-              )}
             </div>
           )}
         </CardContent>
