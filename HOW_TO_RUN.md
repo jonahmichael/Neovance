@@ -1,5 +1,33 @@
 # How to Run Neovance AI - NICU Monitoring System
 
+## 🧠 **NEW: Offline Sepsis Prediction Model Training**
+
+For training and testing the sepsis prediction ML model offline:
+
+```bash
+cd /mnt/d/Neovance-AI
+python train_sepsis_model.py
+```
+
+This will:
+✅ Generate synthetic training dataset with realistic clinical scenarios  
+✅ Train RandomForest and Logistic Regression models  
+✅ Evaluate performance with clinical metrics (AUC: 0.98+)  
+✅ Save model artifacts for production use  
+✅ Demonstrate predictions on test scenarios
+
+**Then test the trained model:**
+
+```bash
+python demo_offline_sepsis_prediction.py
+```
+
+This demonstrates:
+✅ Loading trained models and making predictions  
+✅ Clinically appropriate risk stratification  
+✅ EOS risk calculator integration  
+✅ Real-time prediction capability
+
 ## 🏥 **Quick Start - EOS Risk Calculator Demo**
 
 For a quick demonstration of the **Puopolo/Kaiser EOS Risk Calculator** (the core clinical feature):
