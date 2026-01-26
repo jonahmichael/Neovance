@@ -22,19 +22,20 @@ interface CustodyEntry {
   current_hash: string;
 }
 
-export default function CustodyTimeline() {
+export default function CustodyTimeline({ mrn = "B001" }: { mrn?: string }) {
   const [entries, setEntries] = useState<CustodyEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchCustodyLog();
-  }, []);
+  }, [mrn]);
 
   const fetchCustodyLog = async () => {
     try {
       // For now, read from the file - we'll create an endpoint later
-      const response = await axios.get("http://localhost:8000/custody-log");
-      setEntries(response.data);
+      const response = await axios.get(`http://localhost:8000/custody-log/${mrn}`);
+      const data = response.data;
+      setEntries(Array.isArray(data.entries) ? data.entries : Array.isArray(data) ? data : []);
       setLoading(false);
     } catch (error) {
       console.error("Error fetching custody log:", error);

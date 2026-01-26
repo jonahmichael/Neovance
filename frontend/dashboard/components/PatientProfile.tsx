@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -170,7 +171,8 @@ interface SectionConfig {
   fields: FieldConfig[];
 }
 
-export default function PatientProfile() {
+export default function PatientProfile({ mrn = "B001", onUpdate }: { mrn?: string, onUpdate?: () => void }) {
+  const { user: authUser } = useAuth();
   const [baby, setBaby] = useState<BabyProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState<string | null>(null);
@@ -179,7 +181,12 @@ export default function PatientProfile() {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(["identity", "parent", "measurements"]));
   const [editLog, setEditLog] = useState<EditLogEntry[]>([]);
   const [showEditLog, setShowEditLog] = useState(false);
-  const [authCredentials] = useState({ user_id: "DR001", password: "password123" });
+  
+  // Use current user credentials for updates
+  const [authCredentials] = useState({ 
+    user_id: authUser?.userId || "DR001", 
+    password: authUser?.userId === "NS001" ? "password@ns" : "password@dr" 
+  });
 
   const sections: SectionConfig[] = [
     {
@@ -190,11 +197,11 @@ export default function PatientProfile() {
       fields: [
         { key: "full_name", label: "Full Name", editable: true, type: "text" },
         { key: "mrn", label: "MRN", editable: false, type: "text" },
-        { key: "sex", label: "Sex", editable: false, type: "text" },
-        { key: "dob", label: "Date of Birth", editable: false, type: "text" },
-        { key: "time_of_birth", label: "Time of Birth", editable: false, type: "text" },
-        { key: "place_of_birth", label: "Place of Birth", editable: false, type: "text" },
-        { key: "birth_order", label: "Birth Order", editable: false, type: "text" },
+        { key: "sex", label: "Sex", editable: true, type: "select", options: ["Male", "Female", "Unknown"] },
+        { key: "dob", label: "Date of Birth", editable: true, type: "text" },
+        { key: "time_of_birth", label: "Time of Birth", editable: true, type: "text" },
+        { key: "place_of_birth", label: "Place of Birth", editable: true, type: "text" },
+        { key: "birth_order", label: "Birth Order", editable: true, type: "text" },
         { key: "hospital_id_band", label: "Hospital ID Band", editable: true, type: "text" },
         { key: "footprints_taken", label: "Footprints Taken", editable: true, type: "boolean" },
         { key: "blood_type", label: "Blood Type", editable: true, type: "text" },
@@ -207,11 +214,11 @@ export default function PatientProfile() {
       icon: <Baby className="h-4 w-4" />,
       color: "text-pink-600",
       fields: [
-        { key: "gestational_age", label: "Gestational Age", editable: false, type: "text" },
-        { key: "delivery_method", label: "Delivery Method", editable: false, type: "text" },
-        { key: "apgar_1min", label: "APGAR 1 min", editable: false, type: "number" },
-        { key: "apgar_5min", label: "APGAR 5 min", editable: false, type: "number" },
-        { key: "apgar_10min", label: "APGAR 10 min", editable: false, type: "number" },
+        { key: "gestational_age", label: "Gestational Age", editable: true, type: "text" },
+        { key: "delivery_method", label: "Delivery Method", editable: true, type: "text" },
+        { key: "apgar_1min", label: "APGAR 1 min", editable: true, type: "number" },
+        { key: "apgar_5min", label: "APGAR 5 min", editable: true, type: "number" },
+        { key: "apgar_10min", label: "APGAR 10 min", editable: true, type: "number" },
         { key: "resuscitation_needed", label: "Resuscitation", editable: true, type: "boolean" },
         { key: "resuscitation_details", label: "Resuscitation Details", editable: true, type: "text" },
         { key: "birth_complications", label: "Birth Complications", editable: true, type: "text" },
@@ -223,10 +230,10 @@ export default function PatientProfile() {
       icon: <User className="h-4 w-4" />,
       color: "text-indigo-600",
       fields: [
-        { key: "mother_name", label: "Mother's Name", editable: false, type: "text" },
-        { key: "father_name", label: "Father's Name", editable: false, type: "text" },
-        { key: "mother_age", label: "Mother's Age", editable: false, type: "number" },
-        { key: "mother_blood_type", label: "Mother's Blood Type", editable: false, type: "text" },
+        { key: "mother_name", label: "Mother's Name", editable: true, type: "text" },
+        { key: "father_name", label: "Father's Name", editable: true, type: "text" },
+        { key: "mother_age", label: "Mother's Age", editable: true, type: "number" },
+        { key: "mother_blood_type", label: "Mother's Blood Type", editable: true, type: "text" },
         { key: "mother_id", label: "Mother's ID", editable: true, type: "text" },
         { key: "father_id", label: "Father's ID", editable: true, type: "text" },
         { key: "parent_contact", label: "Contact", editable: true, type: "text" },
@@ -398,11 +405,11 @@ export default function PatientProfile() {
   useEffect(() => {
     fetchBabyProfile();
     fetchEditLog();
-  }, []);
+  }, [mrn]);
 
   const fetchBabyProfile = async () => {
     try {
-      const res = await fetch("http://localhost:8000/baby/B001");
+      const res = await fetch(`http://localhost:8000/baby/${mrn}`);
       const data = await res.json();
       setBaby(data);
       setLoading(false);
@@ -414,7 +421,7 @@ export default function PatientProfile() {
 
   const fetchEditLog = async () => {
     try {
-      const res = await fetch("http://localhost:8000/custody-log/B001");
+      const res = await fetch(`http://localhost:8000/custody-log/${mrn}`);
       if (res.ok) {
         const data = await res.json();
         setEditLog(Array.isArray(data.entries) ? data.entries : Array.isArray(data) ? data : []);
@@ -471,7 +478,7 @@ export default function PatientProfile() {
     }
 
     try {
-      const response = await fetch(`http://localhost:8000/baby/update/B001`, {
+      const response = await fetch(`http://localhost:8000/baby/update/${mrn}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -483,6 +490,7 @@ export default function PatientProfile() {
       if (response.ok) {
         await fetchBabyProfile();
         await fetchEditLog();
+        if (onUpdate) onUpdate();
         setEditMode(null);
         setEditValues({});
       }

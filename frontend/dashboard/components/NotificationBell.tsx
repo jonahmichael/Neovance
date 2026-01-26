@@ -9,12 +9,20 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function NotificationBell() {
-  const { notifications, unreadCount, getUnreadCriticalCount, markAsRead, markAsAcknowledged } = useNotifications();
+  const { 
+    notifications, 
+    unreadCount, 
+    getUnreadCriticalCount, 
+    markAsRead, 
+    markAsAcknowledged,
+    setActiveSepsisAlert
+  } = useNotifications();
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedAlert, setSelectedAlert] = useState<any>(null);
 
-  // Only show for nurses
-  if (user?.role !== 'NURSE') {
+  // Hidden if not logged in
+  if (!user || !user.isLoggedIn) {
     return null;
   }
 
@@ -22,8 +30,10 @@ export default function NotificationBell() {
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
+      case 'SEPSIS_ALERT':
+        return <AlertTriangle className="h-4 w-4 text-red-600 animate-pulse" />;
       case 'CRITICAL_ACTION':
-        return <AlertTriangle className="h-4 w-4 text-red-600" />;
+        return <Clock className="h-4 w-4 text-orange-600" />;
       case 'SUCCESS':
         return <CheckCircle className="h-4 w-4 text-green-600" />;
       case 'WARNING':
@@ -56,6 +66,23 @@ export default function NotificationBell() {
   const handleNotificationClick = (notification: Notification) => {
     if (!notification.isRead) {
       markAsRead(notification.id);
+    }
+    
+    // If it's a sepsis alert or clinical response, set it as active to show the intervention panel
+    if (notification.type === 'SEPSIS_ALERT' || notification.type === 'CRITICAL_ACTION') {
+      setActiveSepsisAlert({
+        alert_id: notification.details.alertId,
+        baby_id: notification.details.mrn,
+        model_risk_score: notification.details.riskScore || 0,
+        alert_status: notification.type === 'SEPSIS_ALERT' ? 'PENDING_DOCTOR_ACTION' : 'ACTIONED',
+        action_taken: notification.details.doctorAction,
+        action_detail: notification.message,
+        observation_duration: notification.details.observationDuration,
+        lab_tests: notification.details.labTests,
+        antibiotics: notification.details.antibiotics,
+        updated_at: notification.timestamp
+      });
+      setIsOpen(false);
     }
   };
 

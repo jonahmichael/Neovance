@@ -163,6 +163,16 @@ export default function VitalsAndTrends() {
   const [showChartSelector, setShowChartSelector] = useState(false);
   const [viewMode, setViewMode] = useState<"simple" | "detailed">("simple");
   const [sepsisTriggered, setSepsisTriggered] = useState(false);
+  const [currentTime, setCurrentTime] = useState("");
+
+  useEffect(() => {
+    // Set initial time on client side to avoid hydration mismatch
+    setCurrentTime(new Date().toLocaleTimeString());
+    const timer = setInterval(() => {
+      setCurrentTime(new Date().toLocaleTimeString());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const triggerSepsis = async () => {
     try {
@@ -468,9 +478,17 @@ export default function VitalsAndTrends() {
                         }`}>{overall.message}</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-xs text-muted-foreground">Last Updated</p>
-                      <p className="text-sm font-medium">{latestData ? new Date(latestData.timestamp).toLocaleTimeString() : "--:--"}</p>
+                    <div className="flex gap-6 text-right">
+                      <div>
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Current Clock</p>
+                        <p className="text-sm font-bold text-blue-600">{currentTime || "--:--:--"}</p>
+                      </div>
+                      <div className="border-l border-slate-200 pl-6">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Last Updated</p>
+                        <p className="text-sm font-medium text-slate-600">
+                          {latestData ? new Date(latestData.timestamp).toLocaleTimeString() : "--:--:--"}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </CardContent>

@@ -12,7 +12,8 @@ import {
   ClipboardCheck,
   Stethoscope,
   ChevronRight,
-  LogOut
+  LogOut,
+  Lock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,6 +36,7 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
     { id: "respiratory", label: "Respiratory", icon: Wind },
     { id: "screening", label: "Screening", icon: Shield },
     { id: "discharge", label: "Discharge", icon: ClipboardCheck },
+    { id: "custody", label: "Chain of Custody", icon: Lock },
   ];
 
   return (
@@ -42,9 +44,7 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
       {/* Logo Header */}
       <div className="px-4 py-5 border-b border-gray-200">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <Stethoscope className="h-4 w-4 text-white" />
-          </div>
+          <Activity className="h-8 w-8 text-blue-600" />
           <div>
             <h1 className="text-base font-bold text-gray-900 tracking-tight font-sans">NeoVance AI</h1>
             <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider font-sans">NICU Monitor</p>

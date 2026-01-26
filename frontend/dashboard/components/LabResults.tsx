@@ -19,7 +19,7 @@ export default function LabResults() {
       description: "Detects bacteria or fungi in the blood. Confirms sepsis. Takes 24-72 hours for results.",
       status: "In Progress",
       date: "2026-01-26",
-      icon: "🧪",
+      icon: "LAB",
     },
     {
       id: 2,
@@ -29,7 +29,7 @@ export default function LabResults() {
       result: "WBC: 12,500/uL, Platelets: 180,000/uL, I/T ratio: 0.15",
       normalRange: "WBC: 9,000-30,000/uL, Platelets: 150,000-400,000/uL, I/T ratio: <0.2",
       date: "2026-01-26",
-      icon: "💉",
+      icon: "CBC",
     },
     {
       id: 3,
@@ -39,14 +39,14 @@ export default function LabResults() {
       result: "8.5 mg/L",
       normalRange: "<10 mg/L",
       date: "2026-01-26",
-      icon: "📊",
+      icon: "CRP",
     },
     {
       id: 4,
       name: "Procalcitonin (PCT)",
       description: "More specific marker for bacterial infection. Rises earlier than CRP in sepsis.",
       status: "Pending",
-      icon: "🔬",
+      icon: "PCT",
     },
     {
       id: 5,
@@ -56,14 +56,14 @@ export default function LabResults() {
       result: "pH: 7.38, pCO2: 38, Lactate: 1.8 mmol/L",
       normalRange: "pH: 7.35-7.45, pCO2: 35-45, Lactate: <2 mmol/L",
       date: "2026-01-25",
-      icon: "🩸",
+      icon: "GAS",
     },
     {
       id: 6,
       name: "Lumbar Puncture (CSF Analysis)",
       description: "Tests spinal fluid for meningitis - CSF culture, cell count, protein & glucose.",
       status: "Pending",
-      icon: "💊",
+      icon: "CSF",
     },
     {
       id: 7,

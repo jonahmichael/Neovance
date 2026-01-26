@@ -74,13 +74,19 @@ class Alert(Base):
     # Model Prediction
     model_risk_score = Column(Float)
     onset_window_hrs = Column(Integer)
-    alert_status = Column(String, default='PENDING_DOCTOR_ACTION') # PENDING_DOCTOR_ACTION, ACTION_TAKEN, CLOSED
+    alert_status = Column(String, default='PENDING_DOCTOR_ACTION') # PENDING_DOCTOR_ACTION, ACTION_TAKEN, DISMISSED, CLOSED
     
     # Doctor's Action
     doctor_id = Column(String)
-    doctor_action = Column(String)
+    doctor_action = Column(String) # OBSERVATION, LAB_TESTS, ANTIBIOTICS, DISMISS
     action_detail = Column(Text)
     action_timestamp = Column(DateTime)
+    
+    # Detailed Decision Info
+    observation_duration = Column(String) # e.g. "6 hours", "3 days"
+    lab_tests = Column(Text) # JSON string of test list
+    antibiotics = Column(Text) # JSON string of antibiotic list
+    dismiss_duration = Column(Integer) # hours to silence
     
     # Final Outcome
     sepsis_confirmed = Column(Boolean)
@@ -711,7 +717,7 @@ class IntegratedNICUSimulator:
         return "Background simulation stopped"
     
     def _background_simulation_loop(self, interval_seconds: int):
-        """Background simulation loop"""
+        """Background simulation loop with automatic sepsis alerting"""
         while self.simulation_active:
             try:
                 timestamp = datetime.utcnow()
@@ -735,6 +741,41 @@ class IntegratedNICUSimulator:
                         status=assessment['alert_level']
                     )
                     db.add(db_vitals)
+
+                    # SEPSIS ALERTING LOGIC
+                    # If high risk and no active action
+                    if assessment['severity_score'] >= 7.5:
+                        # Check if should alert (not dismissed, not already pending)
+                        existing_alert = db.query(Alert).filter(
+                            Alert.baby_id == mrn,
+                            Alert.alert_status.in_(['PENDING_DOCTOR_ACTION', 'ACTION_TAKEN', 'DISMISSED'])
+                        ).order_by(desc(Alert.timestamp)).first()
+
+                        should_create_alert = False
+                        if not existing_alert:
+                            should_create_alert = True
+                        else:
+                            # Re-alert if dismissed duration passed
+                            if existing_alert.alert_status == 'DISMISSED':
+                                silence_hours = existing_alert.dismiss_duration or 1
+                                if datetime.utcnow() > (existing_alert.action_timestamp + timedelta(hours=silence_hours)):
+                                    should_create_alert = True
+                            
+                            # Re-alert if significant time passed since action taken without closure
+                            elif existing_alert.alert_status == 'ACTION_TAKEN':
+                                if datetime.utcnow() > (existing_alert.action_timestamp + timedelta(hours=4)):
+                                    should_create_alert = True
+
+                        if should_create_alert:
+                            new_alert = Alert(
+                                baby_id=mrn,
+                                timestamp=datetime.utcnow(),
+                                model_risk_score=float(assessment['severity_score'] / 10.0),
+                                onset_window_hrs=risk_to_hours(assessment['severity_score'] / 10.0),
+                                alert_status='PENDING_DOCTOR_ACTION'
+                            )
+                            db.add(new_alert)
+                            print(f"[SEPSIS ALERT] Created for {mrn} due to severity {assessment['severity_score']}")
                 
                 db.commit()
                 db.close()
@@ -991,8 +1032,12 @@ class SepsisPredictionRequest(BaseModel):
 class DoctorActionRequest(BaseModel):
     alert_id: int
     doctor_id: str
-    action_type: str
-    action_detail: str
+    action_type: str # OBSERVATION, LAB_TESTS, ANTIBIOTICS, DISMISS
+    action_detail: Optional[str] = None
+    observation_duration: Optional[str] = None
+    lab_tests: Optional[List[str]] = None
+    antibiotics: Optional[List[str]] = None
+    dismiss_duration: Optional[int] = None
 
 class OutcomeLogRequest(BaseModel):
     alert_id: int
@@ -1005,6 +1050,10 @@ class AlertNotification(BaseModel):
     model_risk_score: float
     alert_status: str
     doctor_action: Optional[str] = None
+    action_detail: Optional[str] = None
+    observation_duration: Optional[str] = None
+    lab_tests: Optional[List[str]] = None
+    antibiotics: Optional[List[str]] = None
 
 
 # ============================================================================
@@ -2524,16 +2573,31 @@ def log_doctor_action(request: DoctorActionRequest):
             raise HTTPException(status_code=404, detail="Alert not found")
 
         if alert.alert_status != 'PENDING_DOCTOR_ACTION':
-            raise HTTPException(status_code=400, detail="Action has already been taken on this alert.")
+            # Allow updating if it's already action taken (to refine details)
+            if alert.alert_status not in ['PENDING_DOCTOR_ACTION', 'ACTION_TAKEN']:
+                raise HTTPException(status_code=400, detail="Action cannot be taken on this alert.")
 
         alert.doctor_id = request.doctor_id
         alert.doctor_action = request.action_type
         alert.action_detail = request.action_detail
-        alert.alert_status = 'ACTION_TAKEN'
+        
+        # Save detailed decision info
+        if request.observation_duration:
+            alert.observation_duration = request.observation_duration
+        if request.lab_tests:
+            alert.lab_tests = json.dumps(request.lab_tests)
+        if request.antibiotics:
+            alert.antibiotics = json.dumps(request.antibiotics)
+        if request.dismiss_duration:
+            alert.dismiss_duration = request.dismiss_duration
+            alert.alert_status = 'DISMISSED'
+        else:
+            alert.alert_status = 'ACTION_TAKEN'
+            
         alert.action_timestamp = datetime.utcnow()
         
         db.commit()
-        return {"message": "Doctor's action logged successfully."}
+        return {"message": "Doctor's action logged successfully.", "status": alert.alert_status}
         
     except Exception as e:
         db.rollback()
@@ -2580,18 +2644,16 @@ def log_outcome(request: OutcomeLogRequest):
 @app.get("/api/v1/alerts/pending", response_model=List[AlertNotification])
 def get_pending_alerts(role: str):
     """
-    Gets pending alerts for a given role.
+    Gets pending alerts for a given role with full details.
     """
     db = SessionLocal()
     try:
         if role.lower() == 'doctor':
             alerts = db.query(Alert).filter(Alert.alert_status == 'PENDING_DOCTOR_ACTION').order_by(desc(Alert.timestamp)).all()
         elif role.lower() == 'nurse':
-            # This finds alerts where action was taken in the last 5 minutes.
-            five_minutes_ago = datetime.utcnow() - timedelta(minutes=5)
+            # This finds alerts where action was taken recently
             alerts = db.query(Alert).filter(
-                Alert.alert_status == 'ACTION_TAKEN',
-                Alert.action_timestamp >= five_minutes_ago
+                Alert.alert_status == 'ACTION_TAKEN'
             ).order_by(desc(Alert.action_timestamp)).all()
         else:
             alerts = []
@@ -2603,10 +2665,15 @@ def get_pending_alerts(role: str):
                 timestamp=alert.timestamp,
                 model_risk_score=alert.model_risk_score,
                 alert_status=alert.alert_status,
-                doctor_action=alert.doctor_action
+                doctor_action=alert.doctor_action,
+                action_detail=alert.action_detail,
+                observation_duration=alert.observation_duration,
+                lab_tests=json.loads(alert.lab_tests) if alert.lab_tests else None,
+                antibiotics=json.loads(alert.antibiotics) if alert.antibiotics else None
             ) for alert in alerts
         ]
     except Exception as e:
+        print(f"[API ERROR] Failed to fetch alerts: {e}")
         raise HTTPException(status_code=500, detail=f"Error fetching alerts: {e}")
     finally:
         db.close()

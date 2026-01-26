@@ -1,20 +1,33 @@
 import { NextResponse } from 'next/server';
 
+// app/api/baby/[id]/route.ts
+
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const babyId = params.id;
-  const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+  const { id } = await params;
+
+  const backendUrl =
+    process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
   try {
-    const res = await fetch(`${backendUrl}/api/v1/baby/${babyId}`);
+    const res = await fetch(`${backendUrl}/baby/${id}`);
+
     if (!res.ok) {
-      throw new Error(`Failed to fetch from backend: ${res.statusText}`);
+      return Response.json(
+        { error: "Backend error" },
+        { status: res.status }
+      );
     }
+
     const data = await res.json();
-    return NextResponse.json(data);
-  } catch (error: any) {
-    return NextResponse.json({ message: error.message }, { status: 500 });
+    return Response.json(data);
+  } catch (err) {
+    console.error("API error:", err);
+    return Response.json(
+      { error: "Failed to reach backend" },
+      { status: 500 }
+    );
   }
 }
