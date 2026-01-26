@@ -7,22 +7,9 @@ import ActionPanel from "@/components/ActionPanel";
 import PatientHistory from "@/components/PatientHistory";
 import ActionLog from "@/components/ActionLog";
 import StatisticsCards from "@/components/StatisticsCards";
-import BabyList from "@/components/BabyList";
-import BabyDetail from "@/components/BabyDetail";
 
 export default function Home() {
-  const [activeView, setActiveView] = useState("babies");
-  const [selectedBabyMRN, setSelectedBabyMRN] = useState<string | null>(null);
-
-  const handleSelectBaby = (mrn: string) => {
-    setSelectedBabyMRN(mrn);
-    setActiveView("baby-detail");
-  };
-
-  const handleBackToList = () => {
-    setSelectedBabyMRN(null);
-    setActiveView("babies");
-  };
+  const [activeView, setActiveView] = useState("monitor");
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
@@ -33,16 +20,12 @@ export default function Home() {
           <div className="mb-8">
             <h2 className="text-3xl font-bold mb-2">
               {activeView === "monitor" && "Real-Time Patient Monitor"}
-              {activeView === "babies" && "Neonatal EHR System"}
-              {activeView === "baby-detail" && "Patient Details"}
-              {activeView === "history" && "Vitals Historical Data"}
+              {activeView === "history" && "Patient Historical Data"}
               {activeView === "actions" && "Clinical Action Log"}
             </h2>
             <p className="text-muted-foreground">
               {activeView === "monitor" && "Live vital signs monitoring with real-time risk assessment"}
-              {activeView === "babies" && "Complete neonatal patient records and profiles"}
-              {activeView === "baby-detail" && "Comprehensive patient information and medical history"}
-              {activeView === "history" && "Review historical vital signs data and trends"}
+              {activeView === "history" && "Review historical patient data and trends"}
               {activeView === "actions" && "View all clinical actions and interventions"}
             </p>
           </div>
@@ -58,18 +41,6 @@ export default function Home() {
                   <ActionPanel />
                 </div>
               </div>
-            </div>
-          )}
-
-          {activeView === "babies" && (
-            <div className="space-y-6">
-              <BabyList onSelectBaby={handleSelectBaby} />
-            </div>
-          )}
-
-          {activeView === "baby-detail" && selectedBabyMRN && (
-            <div className="space-y-6">
-              <BabyDetail mrn={selectedBabyMRN} onBack={handleBackToList} />
             </div>
           )}
 

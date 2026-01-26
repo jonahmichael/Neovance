@@ -8,10 +8,17 @@ venv/
 env/
 *.egg-info/
 
-# Patient Data (Sensitive)
-data/neovance.db
-data/neovance.db-journal
+# Databases
+*.db
+*.db-journal
 data/stream.csv
+backend/baby_edit_log.json
+
+# Node
+node_modules/
+.next/
+out/
+dist/
 
 # IDE
 .vscode/
@@ -25,3 +32,9 @@ Thumbs.db
 
 # Logs
 *.log
+backend.log
+frontend.log
+
+# Build
+build/
+*.pyc

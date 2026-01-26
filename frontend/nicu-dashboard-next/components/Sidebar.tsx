@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Activity, History, FileText, Baby } from "lucide-react";
+import { Activity, History, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {
@@ -12,8 +12,7 @@ interface SidebarProps {
 export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
   const navItems = [
     { id: "monitor", label: "Real-Time Monitor", icon: Activity },
-    { id: "babies", label: "All Patients", icon: Baby },
-    { id: "history", label: "Vitals History", icon: History },
+    { id: "history", label: "Patient History", icon: History },
     { id: "actions", label: "Action Log", icon: FileText },
   ];
 
