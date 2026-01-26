@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -12,7 +12,10 @@ import {
   Tooltip,
   Legend,
   Filler,
+  TimeScale,
 } from "chart.js";
+import "chartjs-adapter-luxon";
+import ChartStreaming from "chartjs-plugin-streaming";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 ChartJS.register(
@@ -23,7 +26,9 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  Filler
+  Filler,
+  TimeScale,
+  ChartStreaming
 );
 
 interface VitalData {
@@ -35,9 +40,9 @@ interface VitalData {
 }
 
 export default function RealTimeChart() {
-  const [data, setData] = useState<VitalData[]>([]);
   const [latestData, setLatestData] = useState<VitalData | null>(null);
   const [wsStatus, setWsStatus] = useState<string>("Connecting...");
+  const chartRef = useRef<ChartJS<"line">>(null);
 
   useEffect(() => {
     let ws: WebSocket;
@@ -53,10 +58,18 @@ export default function RealTimeChart() {
       ws.onmessage = (event) => {
         const newData: VitalData = JSON.parse(event.data);
         setLatestData(newData);
-        setData((prev) => {
-          const updated = [...prev, newData];
-          return updated.slice(-30);
-        });
+
+        if (chartRef.current) {
+          chartRef.current.data.datasets[0].data.push({
+            x: new Date(newData.timestamp).valueOf(),
+            y: newData.hr,
+          });
+          chartRef.current.data.datasets[1].data.push({
+            x: new Date(newData.timestamp).valueOf(),
+            y: newData.spo2,
+          });
+          chartRef.current.update("quiet");
+        }
       };
 
       ws.onerror = () => {
@@ -78,27 +91,23 @@ export default function RealTimeChart() {
   }, []);
 
   const chartData = {
-    labels: data.map((d) => {
-      const time = new Date(d.timestamp);
-      return time.toLocaleTimeString();
-    }),
     datasets: [
       {
         label: "Heart Rate",
-        data: data.map((d) => d.hr),
         borderColor: "rgb(34, 211, 238)",
         backgroundColor: "rgba(34, 211, 238, 0.1)",
         tension: 0.4,
         fill: true,
+        data: [],
         yAxisID: "y",
       },
       {
         label: "SpO2",
-        data: data.map((d) => d.spo2),
         borderColor: "rgb(167, 139, 250)",
         backgroundColor: "rgba(167, 139, 250, 0.1)",
         tension: 0.4,
         fill: true,
+        data: [],
         yAxisID: "y1",
       },
     ],
@@ -123,13 +132,23 @@ export default function RealTimeChart() {
           usePointStyle: true,
         },
       },
+      streaming: {
+        frameRate: 30,
+      },
     },
     scales: {
       x: {
+        type: "realtime" as const,
+        realtime: {
+          duration: 60000, // 60 seconds
+          refresh: 1000, // 1 second
+          delay: 2000, // 2 seconds
+          onRefresh: (chart: ChartJS) => {
+            // The chart will automatically scroll
+          },
+        },
         ticks: {
           color: "rgb(148, 163, 184)",
-          maxRotation: 45,
-          minRotation: 0,
         },
         grid: {
           color: "rgba(148, 163, 184, 0.1)",
@@ -150,6 +169,8 @@ export default function RealTimeChart() {
         grid: {
           color: "rgba(148, 163, 184, 0.1)",
         },
+        min: 60,
+        max: 220,
       },
       y1: {
         type: "linear" as const,
@@ -166,6 +187,8 @@ export default function RealTimeChart() {
         grid: {
           drawOnChartArea: false,
         },
+        min: 80,
+        max: 100,
       },
     },
   };
@@ -212,7 +235,7 @@ export default function RealTimeChart() {
       </CardHeader>
       <CardContent>
         <div className="h-[400px]">
-          <Line data={chartData} options={options} />
+          <Line ref={chartRef} data={chartData} options={options as any} />
         </div>
         {latestData && (
           <div className="mt-6 grid grid-cols-5 gap-4">
@@ -228,7 +251,9 @@ export default function RealTimeChart() {
             </div>
             <div className="text-center">
               <div className="text-sm text-muted-foreground mb-1">Resp Rate</div>
-              <div className="text-2xl font-bold">{data[data.length - 1]?.hr || "--"}</div>
+              <div className="text-2xl font-bold">
+                {latestData?.hr ? Math.round(latestData.hr) : "--"}
+              </div>
               <div className="text-xs text-muted-foreground">breaths/min</div>
             </div>
             <div className="text-center">

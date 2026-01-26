@@ -362,12 +362,6 @@ export default function VitalsAndTrends() {
 
   return (
     <div className="space-y-6 font-sans">
-      {/* Critical Action Panel - Doctor Only */}
-      <CriticalActionPanel 
-        patientMRN="B001" 
-        patientName="Amelia Rodriguez" 
-      />
-      
       {/* Vital Signs Cards */}
       <div className="grid grid-cols-5 gap-4">
         {[

@@ -20,7 +20,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Hardcoded credentials with actual staff names
+// Hardcoded credentials - Only authorized users
 const CREDENTIALS = {
   'DR001': { 
     password: 'password@dr', 
@@ -30,14 +30,6 @@ const CREDENTIALS = {
     shift: 'Day',
     phone: '+91-9876500001'
   },
-  'DR002': { 
-    password: 'password@dr', 
-    role: 'DOCTOR' as UserRole, 
-    displayName: 'Dr. Priya Sharma',
-    department: 'Pediatric Cardiology',
-    shift: 'Night',
-    phone: '+91-9876500002'
-  },
   'NS001': { 
     password: 'password@ns', 
     role: 'NURSE' as UserRole, 
@@ -45,14 +37,6 @@ const CREDENTIALS = {
     department: 'NICU Care',
     shift: 'Day',
     phone: '+91-9876500003'
-  },
-  'NS002': { 
-    password: 'password@ns', 
-    role: 'NURSE' as UserRole, 
-    displayName: 'Deepika Singh',
-    department: 'Critical Care',
-    shift: 'Rotating',
-    phone: '+91-9876500004'
   }
 };
 

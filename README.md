@@ -1,383 +1,478 @@
-# Neovance-AI: NICU Real-Time Monitoring System
+# Neovance-AI: Neonatal Sepsis Early Warning System
 
-AI-Powered Sepsis Detection for Premature Infants
+A real-time predictive analytics platform for early detection of neonatal sepsis using machine learning and a human-in-the-loop (HIL) feedback framework.
 
-A production-ready real-time monitoring system for Neonatal Intensive Care Units (NICU), featuring live vital signs tracking, comprehensive EHR management, and WebSocket streaming capabilities.
+## Overview
 
----
+Neovance-AI combines:
+- **Real-time Data Streaming** via Pathway ETL
+- **Machine Learning Risk Prediction** using vital sign patterns
+- **Human-in-the-Loop Clinical Validation** for continuous improvement
+- **Role-Based UI** for doctors and nurses
+- **Full Audit Trail** of all predictions, actions, and outcomes
 
-## Project Structure
+## Key Features
+
+- ✅ Real-time vital signs monitoring and trend analysis
+- ✅ ML-powered sepsis risk prediction (0-100% risk score)
+- ✅ Early onset sepsis (EOS) calculator integration
+- ✅ Doctor action logging with 4 clinical decision options
+- ✅ Nurse notification system for care coordination
+- ✅ Outcome tracking and reward signal calculation
+- ✅ PostgreSQL persistence with TimescaleDB support
+- ✅ Next.js dashboard with role-based views
+- ✅ Offline model retraining pipeline
+
+## Architecture
 
 ```
-Neovance-AI/
-├── backend/
-│   ├── main.py                     # FastAPI server with comprehensive EHR + WebSocket streaming
-│   ├── baby_edit_log.json          # Chain of custody audit trail
-│   └── neonatal_ehr.db             # SQLite database (BabyProfile, User, LiveVitals)
-│
-├── frontend/
-│   └── dashboard/                  # Next.js medical dashboard
-│       ├── app/
-│       │   └── page.tsx            # Main application with routing
-│       ├── components/
-│       │   ├── BabyList.tsx        # Patient list view
-│       │   ├── BabyDetail.tsx      # Patient detail view
-│       │   ├── RealTimeChart.tsx   # Live vitals chart
-│       │   ├── PatientHistory.tsx  # Historical data table
-│       │   ├── ActionPanel.tsx     # Clinical actions + sepsis trigger
-│       │   ├── ActionLog.tsx       # Action timeline
-│       │   ├── Sidebar.tsx         # Navigation
-│       │   └── ui/                 # Reusable UI components
-│       └── lib/
-│           └── utils.ts            # Utility functions
-│
-├── data/
-│   └── stream.csv                  # Live data stream
-│
-├── requirements.txt                # Python dependencies
-└── README.md                       # This file
+┌─────────────────┐
+│  Live Vital     │
+│  Signs Monitor  │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  Pathway ETL    │  ← Real-time aggregation
+│  (streaming)    │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  FastAPI Server │  ← ML inference + HIL orchestration
+│  Port 8000      │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  PostgreSQL DB  │  ← Alerts, actions, outcomes
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  Next.js UI     │  ← Doctor/Nurse dashboards
+│  Port 3000      │
+└─────────────────┘
 ```
-
----
 
 ## Quick Start
 
-### Prerequisites
-- Python 3.12+
-- Node.js 18+
-- Virtual environment
-
-### Installation
-
+### 1. Prerequisites
 ```bash
-# Navigate to project
-cd /mnt/d/Neovance-AI
+# Install PostgreSQL 13+
+sudo apt install postgresql postgresql-contrib
 
-# Create and activate virtual environment
-python -m venv venv
+# Install Python 3.10+
+python3 --version
+
+# Install Node.js 18+
+node --version
+```
+
+### 2. Database Setup
+```bash
+# Create database
+createdb -U postgres -h localhost neovance
+
+# Set password (if needed)
+psql -U postgres
+ALTER USER postgres PASSWORD 'password';
+\q
+
+# Apply schema
+export DATABASE_URL="postgresql://postgres:password@localhost/neovance"
+psql $DATABASE_URL -f backend/schema.sql
+```
+
+### 3. Backend Setup
+```bash
+# Create virtual environment
+python3 -m venv venv
 source venv/bin/activate
 
-# Install Python dependencies
+# Install dependencies
 pip install -r requirements.txt
 
-# Install frontend dependencies
+# Verify model exists
+ls -lh trained_models/sepsis_random_forest.pkl
+
+# Start FastAPI server
+cd backend
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Backend will be available at [http://localhost:8000](http://localhost:8000)
+
+API docs at [http://localhost:8000/docs](http://localhost:8000/docs)
+
+### 4. Frontend Setup
+```bash
+# Install dependencies
 cd frontend/dashboard
 npm install
-```
 
-### Running the System
-
-**Option 1: Complete Pathway Streaming Pipeline (Recommended)**
-
-Start all services at once:
-```bash
-cd /mnt/d/Neovance-AI
-./start_streaming.sh
-```
-
-This starts:
-1. Pathway Simulator (generates vitals -> CSV stream)
-2. Pathway ETL Pipeline (CSV stream -> SQLite database)
-3. FastAPI Backend (serves data via REST API + WebSocket)
-
-**Option 2: Manual Start (for development)**
-
-Terminal 1 - Pathway Simulator:
-```bash
-cd /mnt/d/Neovance-AI/backend
-python pathway_simulator.py
-```
-
-Terminal 2 - Pathway ETL:
-```bash
-cd /mnt/d/Neovance-AI/backend
-python pathway_etl.py
-```
-
-Terminal 3 - FastAPI Backend:
-```bash
-cd /mnt/d/Neovance-AI
-/mnt/d/Neovance-AI/venv/bin/python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-Terminal 4 - Frontend:
-```bash
-cd /mnt/d/Neovance-AI/frontend/dashboard
+# Start Next.js dev server
 npm run dev
 ```
 
-Open **http://localhost:3000** in your browser.
+Frontend will be available at [http://localhost:3000](http://localhost:3000)
 
----
-
-## Features
-
-### 1. Pathway Real-Time Streaming Pipeline
-- **pathway_simulator.py**: Generates realistic NICU vitals data
-- **pathway_etl.py**: Processes CSV stream in real-time
-- Writes to SQLite database with streaming processing
-- Supports sepsis trigger via file-based signaling
-- 3-second data generation interval
-
-### 2. Comprehensive Neonatal EHR System
-- 50+ medical record fields per patient
-- Patient identification, birth information, measurements
-- Physical examinations, lab results, immunizations
-- Feeding data, clinical course, discharge planning
-- Care team tracking and clinical notes
-
-### 3. Real-Time Vital Signs Monitoring
-- Heart Rate (HR), SpO2, Respiratory Rate (RR)
-- Temperature, Mean Arterial Pressure (MAP)
-- WebSocket streaming for live updates
-- Smooth data transitions (no random jumps)
-
-### 4. Chain of Custody Audit Trail
-- Blockchain-style immutable logging (SHA256 hashing)
-- Tracks all patient record modifications
-- Records user ID, timestamp, changes made
-- JSON format for easy querying and compliance
-
-### 5. Multi-Patient Management
-- 5 pre-loaded patient profiles with Indian names
-- Clean card-based list view
-- Click to view comprehensive patient details
-- Status indicators (NICU/Ward)
-
-### 6. User Authentication
-- Doctor and Nurse roles
-- Password-based authentication
-- Authenticated updates logged to audit trail
-- 4 pre-loaded staff users (2 doctors, 2 nurses)
-
-### 7. Sepsis Trigger System
-- Controlled 15-second demonstration spike
-- Shows realistic vital signs deterioration
-- For training and demonstration purposes
-
----
-
-## API Endpoints
-
-### Patient Records
-```
-GET  /babies              # List all baby profiles
-GET  /baby/{mrn}          # Get specific baby profile
-POST /baby/update/{mrn}   # Update baby profile (authenticated)
-```
-
-### Vital Signs
-```
-WS   /ws/live            # WebSocket live stream
-GET  /history            # Last 30 minutes
-GET  /stats              # Statistics
-POST /trigger-sepsis     # Demo sepsis spike
-```
-
-### Audit Trail
-```
-GET  /custody-log        # Complete chain of custody
-GET  /custody-log/{mrn}  # Custody log for specific patient
-```
-
-### System
-```
-GET  /                   # Health check
-POST /action             # Log clinical action
-GET  /docs               # API documentation (FastAPI auto-generated)
-```
-
----
-
-## Dashboard Views
-
-### 1. Real-Time Monitor
-- Live Chart.js visualization of vital signs
-- 4 statistics cards
-- Clinical action logging
-- Sepsis trigger button for demonstrations
-
-### 2. All Patients
-- Clean card grid of all patient profiles
-- Shows MRN, name, DOB, gestational age, birth weight
-- Color-coded status badges (NICU/Ward)
-- Click any card to view full details
-
-### 3. Patient Details
-- Comprehensive 50+ field medical record
-- Organized in 14 sections (Identification, Birth Info, Labs, etc.)
-- Professional medical record layout
-- Back button to return to list
-
-### 4. Vitals History
-- Table of last 30 minutes of vital signs
-- Auto-refresh every 10 seconds
-- Timestamp, vitals, risk score, status
-
-### 5. Action Log
-- Clinical intervention timeline
-- Categorized events with timestamps
-
----
-
-## Technology Stack
-
-**Backend:**
-- FastAPI 0.104.0
-- SQLAlchemy 2.0
-- Uvicorn ASGI server
-- WebSockets for real-time streaming
-- SQLite database
-
-**Frontend:**
-- Next.js 16 (App Router)
-- TypeScript
-- Tailwind CSS (dark mode)
-- Chart.js + react-chartjs-2
-- axios for HTTP
-- lucide-react icons
-
----
-
-## Sample Data
-
-### Pre-loaded Patients
-- 5 baby profiles with Indian names
-- Mix of healthy and NICU cases
-- Twins included (B003, B004)
-- Realistic gestational ages (34-37 weeks)
-
-### Pre-loaded Staff
-- DR001: Dr. Rajesh Kumar (Doctor)
-- DR002: Dr. Priya Sharma (Doctor)
-- NS001: Nurse Anjali Patel (Nurse)
-- NS002: Nurse Deepika Singh (Nurse)
-
-All users have password "1234" for testing.
-
----
-
-## API Usage Examples
-
-### cURL Examples
+### 5. Test the HIL Workflow
 
 ```bash
-# Health check
-curl http://localhost:8000/
+# Terminal 1: Start backend
+cd backend
+source ../../venv/bin/activate
+uvicorn main:app --reload
 
-# Get all babies
-curl http://localhost:8000/babies
-
-# Get specific baby
-curl http://localhost:8000/baby/B001
-
-# Update baby (authenticated)
-curl -X POST http://localhost:8000/baby/update/B001 \
+# Terminal 2: Test prediction endpoint
+curl -X POST http://localhost:8000/api/v1/predict_sepsis \
   -H "Content-Type: application/json" \
   -d '{
-    "auth": {"user_id": "DR001", "password": "1234"},
-    "updates": {"notes": "Patient improving", "discharge_weight": 2.8}
+    "baby_id": "B001",
+    "features": {
+      "hr": 160,
+      "spo2": 92,
+      "rr": 55,
+      "temp": 38.2,
+      "map": 35
+    }
   }'
 
-# Get custody log
-curl http://localhost:8000/custody-log
+# Expected response:
+# {"risk_score": 0.89, "onset_window_hrs": 6, "alert_id": 1}
 
-# Trigger sepsis demo
-curl -X POST http://localhost:8000/trigger-sepsis
+# Terminal 3: Check pending alerts (doctor view)
+curl http://localhost:8000/api/v1/alerts/pending?role=doctor
+
+# Terminal 4: Log doctor action
+curl -X POST http://localhost:8000/api/v1/log_doctor_action \
+  -H "Content-Type: application/json" \
+  -d '{
+    "alert_id": 1,
+    "doctor_id": "DR001",
+    "action_type": "TREAT",
+    "action_detail": "Started ampicillin + gentamicin therapy"
+  }'
+
+# Terminal 5: Check nurse notifications
+curl http://localhost:8000/api/v1/alerts/pending?role=nurse
+
+# Terminal 6: Log outcome
+curl -X POST http://localhost:8000/api/v1/log_outcome \
+  -H "Content-Type: application/json" \
+  -d '{
+    "alert_id": 1,
+    "final_outcome": true
+  }'
 ```
 
-### Python Examples
+## Human-in-the-Loop (HIL) Workflow
+
+### The Learning Loop
+
+```
+1. ML Model predicts high sepsis risk (>75%)
+   ↓
+2. Alert created in database (PENDING_DOCTOR_ACTION)
+   ↓
+3. Doctor reviews alert and takes action:
+   - OBSERVE: Close monitoring
+   - TREAT: Start antibiotics
+   - LAB_TEST: Order blood culture
+   - DISMISS: False positive
+   ↓
+4. Nurse receives instructions (ACTION_TAKEN)
+   ↓
+5. Patient outcome observed (sepsis confirmed or not)
+   ↓
+6. Reward signal calculated (+1 or -1)
+   ↓
+7. Data used for offline model retraining
+```
+
+### Doctor Actions
+
+| Action | Description | Reward Logic |
+|--------|-------------|--------------|
+| **OBSERVE** | Close monitoring without immediate treatment | Neutral feedback |
+| **TREAT** | Initiate antibiotic therapy | +1 if sepsis confirmed, -1 if false positive |
+| **LAB_TEST** | Order confirmatory tests | Depends on lab results |
+| **DISMISS** | Reject alert as false positive | +1 if correct, -1 if sepsis develops |
+
+### Reward Signal Formula
 
 ```python
-import requests
-
-# Get all babies
-response = requests.get("http://localhost:8000/babies")
-babies = response.json()
-
-# Update baby profile
-response = requests.post(
-    "http://localhost:8000/baby/update/B001",
-    json={
-        "auth": {"user_id": "DR001", "password": "1234"},
-        "updates": {"discharge_weight": 2.8}
-    }
-)
-result = response.json()
+if (model_predicted_high_risk AND sepsis_confirmed) OR 
+   (NOT model_predicted_high_risk AND NOT sepsis_confirmed):
+    reward = +1  # Model was correct
+else:
+    reward = -1  # Model was incorrect
 ```
 
----
+## API Reference
+
+### Endpoints
+
+#### POST /api/v1/predict_sepsis
+Predict sepsis risk from vital signs.
+
+**Request:**
+```json
+{
+  "baby_id": "B001",
+  "features": {
+    "hr": 160,
+    "spo2": 92,
+    "rr": 55,
+    "temp": 38.2,
+    "map": 35
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "risk_score": 0.89,
+  "onset_window_hrs": 6,
+  "alert_id": 1
+}
+```
+
+#### GET /api/v1/alerts/pending?role={doctor|nurse}
+Fetch pending alerts based on user role.
+
+**Response:**
+```json
+[
+  {
+    "alert_id": 1,
+    "baby_id": "B001",
+    "timestamp": "2026-01-26T12:00:00Z",
+    "model_risk_score": 0.89,
+    "onset_window_hrs": 6,
+    "alert_status": "PENDING_DOCTOR_ACTION"
+  }
+]
+```
+
+#### POST /api/v1/log_doctor_action
+Log doctor's clinical decision.
+
+**Request:**
+```json
+{
+  "alert_id": 1,
+  "doctor_id": "DR001",
+  "action_type": "TREAT",
+  "action_detail": "Started empiric antibiotics due to high risk score and clinical signs"
+}
+```
+
+#### POST /api/v1/log_outcome
+Log final patient outcome and calculate reward.
+
+**Request:**
+```json
+{
+  "alert_id": 1,
+  "final_outcome": true
+}
+```
+
+## Frontend Components
+
+### Doctor View
+- **CriticalActionPanel** - Action buttons and clinical notes form
+- **AlertList** - Real-time pending alerts with risk scores
+- **PatientDetails** - Full vital signs and trends
+- **ActionHistory** - Past decisions and outcomes
+
+### Nurse View
+- **DoctorInstructions** - Recent doctor actions to execute
+- **NotificationBell** - Real-time alerts when doctors take action
+- **PriorityPatients** - Patients needing immediate attention
+- **VitalsMonitor** - Real-time vital sign tracking
 
 ## Database Schema
 
-### BabyProfile Table (50+ fields)
-- Identification: mrn, full_name, sex, dob, birth_order
-- Gestational: gestational_age, apgar scores
-- Parents: mother/father names, contacts, blood type
-- Measurements: weights, length, circumferences
-- Physical Exam: muscle tone, reflexes, skin, fontanelle
-- Sensory: hearing, vision screening
-- Cardiorespiratory: pulse ox, breathing, heart sounds
-- Labs: metabolic, glucose, bilirubin, blood type
-- Immunizations: Vit K, Hep B, eye prophylaxis
-- Feeding: type, tolerance, output
-- Clinical: NICU status, oxygen, medications, procedures
-- Risk: maternal infections, delivery, complications
-- Discharge: date, weight, instructions
-- Team: pediatrician, attending, nursing staff
+### alerts table
+```sql
+CREATE TABLE alerts (
+    alert_id SERIAL PRIMARY KEY,
+    baby_id TEXT NOT NULL,
+    timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    
+    -- ML Prediction
+    model_risk_score FLOAT,
+    onset_window_hrs INT,
+    alert_status TEXT DEFAULT 'PENDING_DOCTOR_ACTION',
+    
+    -- Doctor Action
+    doctor_id TEXT,
+    doctor_action TEXT,
+    action_detail TEXT,
+    action_timestamp TIMESTAMPTZ,
+    
+    -- Outcome & Reward
+    sepsis_confirmed BOOLEAN,
+    outcome_timestamp TIMESTAMPTZ,
+    reward_signal INT,
+    model_status TEXT
+);
+```
 
-### User Table
-- user_id (PK), full_name, role, password
+## Model Training
 
-### LiveVitals Table
-- timestamp (PK), mrn (FK), hr, spo2, rr, temp, map, risk_score, status
+### Training Data Format
+```csv
+baby_id,hr,spo2,rr,temp,map,sepsis_confirmed
+B001,160,92,55,38.2,35,1
+B002,140,95,45,36.8,40,0
+```
 
----
+### Training Pipeline
+```bash
+# Generate synthetic training data
+python generate_sepsis_training_data.py
+
+# Train model
+python train_sepsis_model.py
+
+# Test model
+python test_your_model.py
+
+# Model saved to: trained_models/sepsis_random_forest.pkl
+```
+
+### Model Retraining with HIL Data
+```bash
+# Export HIL feedback data
+psql $DATABASE_URL -c "COPY (SELECT * FROM alerts WHERE reward_signal IS NOT NULL) TO '/tmp/hil_data.csv' CSV HEADER"
+
+# Combine with original training data
+cat data/neonatal_sepsis_training.csv /tmp/hil_data.csv > data/combined_training.csv
+
+# Retrain model
+python train_sepsis_model.py --data data/combined_training.csv
+
+# Deploy new model (hot-swap)
+cp trained_models/sepsis_random_forest.pkl trained_models/sepsis_random_forest_v2.pkl
+# Update backend to load new model
+```
+
+## Monitoring & Metrics
+
+Track these key performance indicators:
+
+- **Alert Rate**: Predictions per hour/day
+- **Action Distribution**: TREAT/OBSERVE/LAB/DISMISS breakdown
+- **Average Reward Signal**: Model accuracy over time (target: >0.7)
+- **False Positive Rate**: Dismissed alerts that were correct
+- **False Negative Rate**: Missed sepsis cases (critical metric)
+- **Response Time**: Alert creation to doctor action latency
+
+## Deployment
+
+### Production Checklist
+
+- [ ] Set up PostgreSQL with TimescaleDB extension
+- [ ] Configure SSL certificates for HTTPS
+- [ ] Set environment variables for sensitive credentials
+- [ ] Enable CORS for frontend domain
+- [ ] Set up log aggregation (e.g., ELK stack)
+- [ ] Configure backup strategy for database
+- [ ] Set up monitoring (e.g., Prometheus + Grafana)
+- [ ] Test disaster recovery procedures
+- [ ] Document incident response plan
+- [ ] Obtain regulatory approval (if applicable)
+
+### Environment Variables
+```bash
+# Backend
+export DATABASE_URL="postgresql://user:pass@host:port/dbname"
+export MODEL_PATH="trained_models/sepsis_random_forest.pkl"
+export LOG_LEVEL="INFO"
+
+# Frontend
+export NEXT_PUBLIC_API_URL="https://api.neovance.com"
+```
+
+## Safety & Ethics
+
+> **CRITICAL**: This system is a **clinical decision support tool**, NOT an autonomous decision-maker. All clinical decisions require doctor review and approval.
+
+### Key Principles
+1. **Human Authority**: Doctors have final say on all patient care decisions
+2. **Transparency**: All predictions include confidence scores and reasoning
+3. **Audit Trail**: Complete logging of predictions, actions, and outcomes
+4. **Continuous Improvement**: System learns from expert decisions
+5. **Fail-Safe Design**: System defaults to alerting, never auto-dismissing
 
 ## Troubleshooting
 
-**Backend not starting:**
+### Backend won't start
 ```bash
-# Check if port 8000 is in use
-lsof -i :8000
+# Check PostgreSQL connection
+psql $DATABASE_URL -c "SELECT 1"
 
-# Use correct Python from venv
-/mnt/d/Neovance-AI/venv/bin/python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+# Check if model file exists
+ls -lh trained_models/sepsis_random_forest.pkl
+
+# Check Python dependencies
+pip list | grep -E "fastapi|sqlalchemy|psycopg2|scikit-learn"
 ```
 
-**Frontend not starting:**
+### Frontend can't connect to backend
 ```bash
-# Check if port 3000 is in use
-lsof -i :3000
+# Verify backend is running
+curl http://localhost:8000/api/health
 
-# Remove lock file if needed
-rm -f frontend/dashboard/.next/dev/lock
-
-# Restart
-cd frontend/dashboard && npm run dev
+# Check CORS configuration in backend/main.py
+# Ensure frontend URL is in allowed_origins list
 ```
 
-**Database issues:**
+### Database connection errors
 ```bash
-# Backend will auto-create on first run
-# To reset, delete and restart:
-rm backend/neonatal_ehr.db
-rm backend/baby_edit_log.json
-# Restart backend to repopulate
+# Test connection
+psql postgresql://postgres:password@localhost/neovance -c "SELECT NOW()"
+
+# Check if database exists
+psql -U postgres -l | grep neovance
+
+# Recreate database if needed
+dropdb -U postgres neovance
+createdb -U postgres neovance
+psql -U postgres neovance -f backend/schema.sql
 ```
 
-**WebSocket connection:**
-```bash
-# Test with wscat
-wscat -c ws://localhost:8000/ws/live
-```
+## Contributing
 
----
+Contributions welcome! Please:
+1. Fork the repository
+2. Create a feature branch
+3. Add tests for new functionality
+4. Submit a pull request with clear description
 
 ## License
 
-MIT License
+MIT License - see LICENSE file for details
+
+## Support
+
+For issues or questions:
+- GitHub Issues: [github.com/yourorg/neovance-ai/issues](https://github.com/yourorg/neovance-ai/issues)
+- Email: support@neovance.com
+- Documentation: [docs.neovance.com](https://docs.neovance.com)
+
+## Acknowledgments
+
+- Pathway framework for real-time ETL
+- FastAPI for high-performance API
+- Next.js and Tailwind CSS for modern UI
+- PostgreSQL and TimescaleDB for time-series data
 
 ---
 
-Built for NICU medical professionals - Real-time monitoring and comprehensive EHR management
+**Made with ❤️ for safer neonatal care**

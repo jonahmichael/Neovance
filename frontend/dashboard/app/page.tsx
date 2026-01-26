@@ -29,7 +29,7 @@ export default function Home() {
   const [baby, setBaby] = useState<BabyInfo | null>(null);
 
   useEffect(() => {
-    fetch("http://localhost:8000/baby/B001")
+    fetch("/api/baby/B001")
       .then((res) => res.json())
       .then((data) => setBaby(data))
       .catch((err) => console.error("Failed to fetch baby:", err));
