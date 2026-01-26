@@ -28,10 +28,14 @@ import joblib
 # ============================================================================
 # DATABASE SETUP
 # ============================================================================
+# DATABASE SETUP
+# ============================================================================
 
-DATABASE_URL = "postgresql://postgres:password@localhost/neovance"
+DATABASE_URL = "sqlite:///./neovance.db"
 
-engine = create_engine(DATABASE_URL)
+engine = create_engine(
+    DATABASE_URL, connect_args={"check_same_thread": False}
+)
 
 # ============================================================================
 # HIL MODEL SETUP
@@ -100,6 +104,213 @@ class RealisticVitals(Base):
     risk_score = Column(Float)
     status = Column(String)
 
+
+class User(Base):
+    """Model for authenticated users (doctors, nurses)"""
+    __tablename__ = "users"
+    
+    user_id = Column(String, primary_key=True)
+    full_name = Column(String, nullable=False)
+    role = Column(String, nullable=False)  # Doctor, Nurse
+    password = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Staff(Base):
+    """Model for staff directory"""
+    __tablename__ = "staff"
+    
+    staff_id = Column(String, primary_key=True)
+    name = Column(String, nullable=False)
+    role = Column(String, nullable=False)
+    specialization = Column(String)
+    contact = Column(String)
+    shift = Column(String)
+
+
+class BabyProfile(Base):
+    """Comprehensive baby profile for NICU patients"""
+    __tablename__ = "baby_profiles"
+    
+    mrn = Column(String, primary_key=True)  # Medical Record Number
+    full_name = Column(String, nullable=False)
+    sex = Column(String)
+    dob = Column(Date)
+    time_of_birth = Column(String)
+    place_of_birth = Column(String)
+    birth_order = Column(String)
+    gestational_age = Column(String)
+    apgar_1min = Column(Integer)
+    apgar_5min = Column(Integer)
+    apgar_10min = Column(Integer)
+    
+    # Parent Information
+    mother_name = Column(String)
+    father_name = Column(String)
+    parent_contact = Column(String)
+    parent_address = Column(Text)
+    mother_age = Column(Integer)
+    mother_blood_type = Column(String)
+    mother_id = Column(String)
+    father_id = Column(String)
+    emergency_contact = Column(String)
+    hospital_id_band = Column(String)
+    footprints_taken = Column(Boolean)
+    
+    # Measurements
+    birth_weight = Column(Float)
+    length = Column(Float)
+    head_circumference = Column(Float)
+    chest_circumference = Column(Float)
+    weight_percentile = Column(String)
+    length_percentile = Column(String)
+    head_percentile = Column(String)
+    
+    # Physical Examination
+    muscle_tone = Column(String)
+    reflexes = Column(String)
+    moro_reflex = Column(String)
+    rooting_reflex = Column(String)
+    sucking_reflex = Column(String)
+    grasp_reflex = Column(String)
+    stepping_reflex = Column(String)
+    alertness_level = Column(String)
+    cry_strength = Column(String)
+    skin_condition = Column(String)
+    birthmarks = Column(String)
+    bruising = Column(String)
+    fontanelle_status = Column(String)
+    eye_exam = Column(String)
+    ear_exam = Column(String)
+    nose_throat_exam = Column(String)
+    genital_exam = Column(String)
+    anus_patency = Column(String)
+    limb_movement = Column(String)
+    spine_check = Column(String)
+    hip_check = Column(String)
+    
+    # Sensory Screening
+    hearing_screening = Column(String)
+    hearing_screening_date = Column(String)
+    vision_screening = Column(String)
+    red_reflex_right = Column(String)
+    red_reflex_left = Column(String)
+    response_to_stimuli = Column(String)
+    
+    # Cardiorespiratory
+    pulse_oximetry = Column(String)
+    pulse_ox_right_hand = Column(Float)
+    pulse_ox_foot = Column(Float)
+    breathing_pattern = Column(String)
+    lung_sounds = Column(String)
+    heart_sounds = Column(String)
+    heart_murmur_grade = Column(String)
+    
+    # Lab Screening
+    metabolic_screening = Column(String)
+    metabolic_screening_date = Column(String)
+    pku_result = Column(String)
+    msud_result = Column(String)
+    galactosemia_result = Column(String)
+    hypothyroidism_result = Column(String)
+    cah_result = Column(String)
+    sickle_cell_result = Column(String)
+    thalassemia_result = Column(String)
+    cystic_fibrosis_result = Column(String)
+    scid_result = Column(String)
+    biotinidase_result = Column(String)
+    genetic_screening_panel = Column(String)
+    blood_glucose = Column(String)
+    bilirubin_level = Column(String)
+    bilirubin_date = Column(String)
+    blood_type = Column(String)
+    rh_factor = Column(String)
+    coombs_test = Column(String)
+    
+    # Immunizations
+    vitamin_k_given = Column(Boolean)
+    vitamin_k_date = Column(String)
+    hep_b_vaccine = Column(Boolean)
+    hep_b_date = Column(String)
+    eye_prophylaxis = Column(Boolean)
+    eye_prophylaxis_date = Column(String)
+    other_vaccines = Column(String)
+    
+    # Feeding & Elimination
+    feeding_method = Column(String)
+    feeding_tolerance = Column(String)
+    feeds_per_day = Column(Integer)
+    urine_output = Column(String)
+    first_void_time = Column(String)
+    stool_output = Column(String)
+    meconium_passage_time = Column(String)
+    vomiting = Column(String)
+    reflux = Column(String)
+    
+    # Clinical Course
+    bed_assignment = Column(String)
+    nicu_admission = Column(Boolean)
+    nicu_admission_reason = Column(String)
+    oxygen_support = Column(String)
+    fio2 = Column(Float)
+    iv_fluids = Column(String)
+    medications = Column(String)
+    antibiotics = Column(String)
+    procedures = Column(String)
+    monitoring_events = Column(String)
+    infection_screening = Column(String)
+    
+    # Risk & History
+    maternal_infections = Column(String)
+    gbs_status = Column(String)
+    maternal_hiv = Column(String)
+    maternal_hep_b = Column(String)
+    maternal_syphilis = Column(String)
+    drug_exposure = Column(String)
+    delivery_method = Column(String)
+    delivery_complications = Column(String)
+    birth_complications = Column(String)
+    resuscitation_needed = Column(Boolean)
+    resuscitation_details = Column(String)
+    family_genetic_history = Column(String)
+    prenatal_history = Column(String)
+    prenatal_care = Column(String)
+    
+    # Discharge
+    discharge_date = Column(String)
+    discharge_weight = Column(Float)
+    discharge_diagnosis = Column(String)
+    follow_up_appointments = Column(String)
+    parent_education = Column(String)
+    home_care_instructions = Column(String)
+    screening_results_summary = Column(String)
+    
+    # Care Team
+    attending_physician = Column(String)
+    primary_nurse = Column(String)
+    primary_care_pediatrician = Column(String)
+    
+    # Notes & Timestamps
+    notes = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class LiveVitals(Base):
+    """Model for live vitals streaming data"""
+    __tablename__ = "live_vitals"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    timestamp = Column(String, nullable=False)
+    mrn = Column(String, nullable=False)
+    hr = Column(Float)
+    spo2 = Column(Float)
+    rr = Column(Float)
+    temp = Column(Float)
+    map = Column(Float)
+    risk_score = Column(Float)
+    status = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 # ============================================================================
@@ -204,9 +415,9 @@ class RealisticVitalGenerator:
         
         # Randomly choose sepsis profile
         self.sepsis_profile = np.random.choice(["fever", "hypothermia"], p=[0.6, 0.4])
-        print(f"🚨 Sepsis triggered: {self.sepsis_profile} profile")
+        print(f"Sepsis triggered: {self.sepsis_profile} profile")
     
-    def reset_to_normal(self):
+    def reset_to_normal(self) -> None:
         """Reset to stable baseline"""
         self.state = ClinicalState.STABLE
         self.sepsis_onset_time = None
@@ -405,16 +616,16 @@ class RealisticVitalGenerator:
             severity_score += (self.ranges.map_min - vitals['map']) / 5
         
         if severity_score >= 8:
-            alert_level = "🚨 CRITICAL"
+            alert_level = "CRITICAL"
             clinical_status = "Critical condition - immediate intervention required"
         elif severity_score >= 4:
-            alert_level = "⚠️ WARNING"
+            alert_level = "WARNING"
             clinical_status = "Concerning vitals - close monitoring needed"
         elif severity_score >= 2:
-            alert_level = "⚡ CAUTION"
+            alert_level = "CAUTION"
             clinical_status = "Mild abnormalities - continue monitoring"
         else:
-            alert_level = "✅ NORMAL"
+            alert_level = "NORMAL"
             clinical_status = "Vitals within acceptable range"
         
         return {
@@ -503,7 +714,7 @@ class IntegratedNICUSimulator:
         """Background simulation loop"""
         while self.simulation_active:
             try:
-                timestamp = datetime.now().isoformat()
+                timestamp = datetime.utcnow()
                 db = SessionLocal()
                 
                 for mrn, patient in self.patients.items():
@@ -514,18 +725,14 @@ class IntegratedNICUSimulator:
                     # Store in realistic_vitals table
                     db_vitals = RealisticVitals(
                         timestamp=timestamp,
-                        mrn=mrn,
+                        baby_id=mrn,
                         hr=vitals['hr'],
                         spo2=vitals['spo2'],
-                        rr=vitals['rr'],
+                        resp_rate=vitals['rr'],
                         temp=vitals['temp'],
                         map=vitals['map'],
-                        clinical_status=assessment['clinical_status'],
-                        alert_level=assessment['alert_level'],
-                        severity_score=assessment['severity_score'],
-                        abnormal_count=assessment['abnormal_count'],
-                        sepsis_state=assessment['state'],
-                        time_since_sepsis=assessment['time_since_sepsis']
+                        risk_score=assessment['severity_score'],
+                        status=assessment['alert_level']
                     )
                     db.add(db_vitals)
                 
@@ -891,6 +1098,10 @@ def authenticate_user(user_id: str, password: str, db: Session) -> bool:
 
 global_sepsis_triggered = False
 
+# Global Simulator for dummy data fallback
+nicu_simulator = IntegratedNICUSimulator()
+nicu_simulator.simulation_active = True # Keep it ready for single readings
+
 
 # ============================================================================
 # PATHWAY INTEGRATION
@@ -920,8 +1131,8 @@ def populate_initial_data():
         
         # Create Users - Only authorized users
         users = [
-            User(user_id="DR001", full_name="Dr. Rajesh Kumar", role="Doctor", password="1234"),
-            User(user_id="NS001", full_name="Anjali Patel", role="Nurse", password="1234"),
+            User(user_id="DR001", full_name="Dr. Rajesh Kumar", role="Doctor", password="password@dr"),
+            User(user_id="NS001", full_name="Anjali Patel", role="Nurse", password="password@ns"),
         ]
         
         for user in users:
@@ -1247,34 +1458,13 @@ async def startup_event():
     
     populate_initial_data()
     
-    # Initialize realistic vitals table
-    db = SessionLocal()
-    try:
-        from sqlalchemy import text
-        db.execute(text("CREATE TABLE IF NOT EXISTS realistic_vitals ("
-                  "id INTEGER PRIMARY KEY AUTOINCREMENT, "
-                  "timestamp TEXT NOT NULL, "
-                  "mrn TEXT NOT NULL, "
-                  "hr REAL NOT NULL, "
-                  "spo2 REAL NOT NULL, "
-                  "rr REAL NOT NULL, "
-                  "temp REAL NOT NULL, "
-                  "map REAL NOT NULL, "
-                  "clinical_status TEXT NOT NULL, "
-                  "alert_level TEXT NOT NULL, "
-                  "severity_score REAL NOT NULL, "
-                  "abnormal_count INTEGER NOT NULL, "
-                  "sepsis_state TEXT NOT NULL, "
-                  "time_since_sepsis REAL, "
-                  "created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"))
-        db.commit()
-        print("[STARTUP] Realistic vitals table ready")
-    except Exception as e:
-        print(f"[STARTUP] Error creating realistic_vitals table: {e}")
-    finally:
-        db.close()
+    # Start the simulation automatically for dummy data
+    if nicu_simulator:
+        print("[STARTUP] Starting background vitals simulation...")
+        nicu_simulator.start_background_simulation(interval_seconds=3)
     
     print("[STARTUP] Backend ready with integrated vitals simulation")
+    print("[STARTUP] Use /simulation/start to begin realistic vitals generation")
     print("[STARTUP] Use /simulation/start to begin realistic vitals generation")
 
 
@@ -1313,8 +1503,31 @@ async def get_baby_profile(mrn: str):
     try:
         baby = db.query(BabyProfile).filter(BabyProfile.mrn == mrn).first()
         if not baby:
-            raise HTTPException(status_code=404, detail="Baby not found")
+            # Fallback to dummy data if DB entry is missing
+            return {
+                "mrn": mrn,
+                "full_name": f"Baby of {mrn}",
+                "sex": "Male" if int(mrn[-1]) % 2 == 0 else "Female",
+                "dob": (date.today() - timedelta(days=5)).isoformat(),
+                "gestational_age": "36w 4d",
+                "birth_weight": 2.4,
+                "nicu_admission": True,
+                "primary_care_pediatrician": "Dr. Rajesh Kumar"
+            }
         return baby
+    except Exception as e:
+        print(f"[API ERROR] Database error in get_baby_profile: {e}")
+        # Universal fallback for any database issues
+        return {
+            "mrn": mrn,
+            "full_name": "Emergency Patient Profile (DB Offline)",
+            "sex": "Unknown",
+            "dob": date.today().isoformat(),
+            "gestational_age": "N/A",
+            "birth_weight": 0.0,
+            "nicu_admission": True,
+            "primary_care_pediatrician": "Unknown"
+        }
     finally:
         db.close()
 
@@ -1395,29 +1608,52 @@ async def websocket_live_feed(websocket: WebSocket):
     
     try:
         while True:
-            db = SessionLocal()
-            
-            latest_record = db.query(LiveVitals)\
-                .order_by(desc(LiveVitals.timestamp))\
-                .first()
-            
-            if latest_record:
-                data = {
-                    "timestamp": latest_record.timestamp,
-                    "patient_id": latest_record.mrn,
-                    "hr": latest_record.hr,
-                    "spo2": latest_record.spo2,
-                    "rr": latest_record.rr,
-                    "temp": latest_record.temp,
-                    "map": latest_record.map,
-                    "risk_score": latest_record.risk_score,
-                    "status": latest_record.status,
-                    "created_at": latest_record.created_at.isoformat()
-                }
-                
+            # Try getting data from DB first
+            data = None
+            try:
+                db = SessionLocal()
+                latest_record = db.query(RealisticVitals)\
+                    .order_by(desc(RealisticVitals.timestamp))\
+                    .first()
+                if latest_record:
+                    data = {
+                        "timestamp": str(latest_record.timestamp),
+                        "patient_id": latest_record.baby_id,
+                        "hr": latest_record.hr,
+                        "spo2": latest_record.spo2,
+                        "rr": latest_record.resp_rate,
+                        "temp": latest_record.temp,
+                        "map": latest_record.map,
+                        "risk_score": latest_record.risk_score,
+                        "status": latest_record.status
+                    }
+                db.close()
+            except Exception as e:
+                print(f"[WEBSOCKET DB ERROR] {e}")
+
+            # Fallback to simulated data if no DB data
+            if not data:
+                # Generate a new reading from global simulator
+                sim_readings = nicu_simulator.generate_single_reading()
+                # Default to B001 or first available
+                baby_id = "B001"
+                if baby_id in sim_readings:
+                    sim_data = sim_readings[baby_id]
+                    data = {
+                        "timestamp": datetime.now().isoformat(),
+                        "patient_id": baby_id,
+                        "hr": sim_data['hr'],
+                        "spo2": sim_data['spo2'],
+                        "rr": sim_data['rr'],
+                        "temp": sim_data['temp'],
+                        "map": sim_data['map'],
+                        "risk_score": sim_data['severity_score'],
+                        "status": sim_data['alert_level']
+                    }
+
+            if data:
                 await websocket.send_json(data)
             
-            db.close()
             await asyncio.sleep(1)
             
     except WebSocketDisconnect:
@@ -1438,14 +1674,47 @@ async def get_history():
     try:
         cutoff_time = datetime.now() - timedelta(minutes=30)
         
-        records = db.query(LiveVitals)\
-            .filter(LiveVitals.created_at >= cutoff_time)\
-            .order_by(desc(LiveVitals.timestamp))\
+        records = db.query(RealisticVitals)\
+            .filter(RealisticVitals.timestamp >= cutoff_time)\
+            .order_by(desc(RealisticVitals.timestamp))\
             .all()
         
         print(f"[HISTORY] Returning {len(records)} records from last 30 minutes")
         
-        return records
+        response_data = []
+        
+        # Fallback to dummy history if no records found
+        if not records:
+            print("[HISTORY] No records found, generating dummy history")
+            for i in range(10):
+                response_data.append({
+                    "timestamp": (datetime.now() - timedelta(minutes=i*3)).isoformat(),
+                    "mrn": "B001",
+                    "hr": 140 + i,
+                    "spo2": 98 - (i % 2),
+                    "rr": 45 + (i % 5),
+                    "temp": 36.8,
+                    "map": 35 - (i % 3),
+                    "risk_score": 0.1,
+                    "status": "stable"
+                })
+            return response_data
+
+        # Map to response model
+        for r in records:
+            response_data.append({
+                "timestamp": str(r.timestamp),
+                "mrn": r.baby_id,
+                "hr": r.hr,
+                "spo2": r.spo2,
+                "rr": r.resp_rate,
+                "temp": r.temp,
+                "map": r.map,
+                "risk_score": r.risk_score,
+                "status": r.status
+            })
+            
+        return response_data
         
     except Exception as e:
         print(f"[HISTORY ERROR] {e}")
@@ -1564,7 +1833,7 @@ async def trigger_sepsis(mrn: Optional[str] = None):
             "message": f"Realistic sepsis progression triggered {patient_info}",
             "type": "gradual_deterioration", 
             "duration": "30-45 minutes progressive worsening",
-            "effects": "HR↑ RR↑ SpO2↓ MAP↓ Temp↑/↓ (realistic patterns)",
+            "effects": "HR up, RR up, SpO2 down, MAP down, Temp variable (realistic patterns)",
             "patient": mrn or "random_selection",
             "timestamp": datetime.now().isoformat()
         }
@@ -1739,8 +2008,8 @@ async def get_all_realistic_vitals(limit: int = 20):
 # INTEGRATED VITALS SIMULATION ENDPOINTS
 # ============================================================================
 
-# Global simulator instance
-nicu_simulator = None
+# Global simulator instance already initialized above
+# nicu_simulator = None
 
 @app.post("/simulation/start")
 async def start_vitals_simulation(background_tasks: BackgroundTasks, interval_seconds: int = 3):
