@@ -16,8 +16,8 @@ import RespiratorySupport from "@/components/RespiratorySupport";
 import ScreeningImmunization from "@/components/ScreeningImmunization";
 import DischargePlanning from "@/components/DischargePlanning";
 import CustodyTimeline from "@/components/CustodyTimeline";
-import CriticalActionPanel from "@/components/CriticalActionPanel";
 import NurseActionFollowup from "@/components/NurseActionFollowup";
+import CriticalActionPanel from "@/components/CriticalActionPanel";
 import { useNotifications } from "@/contexts/NotificationContext";
 
 interface BabyInfo {
@@ -159,16 +159,12 @@ function DashboardContent() {
 
       {/* Sepsis Alert Modal Overlay */}
       {activeSepsisAlert && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="max-w-2xl w-full animate-in zoom-in-95 duration-300">
-            {user.role === 'DOCTOR' && activeSepsisAlert.alert_status === 'PENDING_DOCTOR_ACTION' ? (
-              <CriticalActionPanel 
-                alert={activeSepsisAlert} 
-                doctorId={user.id} 
-                onActionTaken={() => setActiveSepsisAlert(null)}
-                onCancel={() => setActiveSepsisAlert(null)}
-              />
-            ) : (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-[2px] animate-in fade-in duration-300">
+          <div className="max-w-4xl w-full animate-in zoom-in-95 duration-300">
+            {user.role === 'DOCTOR' && (
+              <CriticalActionPanel />
+            )}
+            {user.role === 'NURSE' && (
               <NurseActionFollowup 
                 alert={activeSepsisAlert}
                 onComplete={() => setActiveSepsisAlert(null)}

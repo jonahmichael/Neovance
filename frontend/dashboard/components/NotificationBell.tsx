@@ -26,7 +26,18 @@ export default function NotificationBell() {
     return null;
   }
 
-  const criticalCount = getUnreadCriticalCount();
+  // Filter notifications based on user role
+  const filteredNotifications = notifications.filter(notification => {
+    // CRITICAL_ACTION notifications are only for nurses
+    if (notification.type === 'CRITICAL_ACTION') {
+      return user.role === 'NURSE';
+    }
+    // Other notifications can be seen by all roles
+    return true;
+  });
+
+  const filteredUnreadCount = filteredNotifications.filter(n => !n.isRead).length;
+  const filteredCriticalCount = filteredNotifications.filter(n => !n.isRead && n.type === 'CRITICAL_ACTION').length;
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -101,14 +112,14 @@ export default function NotificationBell() {
         className="relative p-2 hover:bg-gray-100"
       >
         <Bell className="h-5 w-5 text-gray-600" />
-        {unreadCount > 0 && (
+        {filteredUnreadCount > 0 && (
           <Badge className={`absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs font-bold p-0 rounded-full border-2 border-white ${
-            criticalCount > 0 ? 'bg-red-500' : 'bg-blue-500'
+            filteredCriticalCount > 0 ? 'bg-red-500' : 'bg-blue-500'
           } text-white`}>
-            {unreadCount > 9 ? '9+' : unreadCount}
+            {filteredUnreadCount > 9 ? '9+' : filteredUnreadCount}
           </Badge>
         )}
-        {criticalCount > 0 && (
+        {filteredCriticalCount > 0 && (
           <div className="absolute -top-1 -right-1 h-3 w-3">
             <div className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></div>
           </div>
@@ -134,9 +145,9 @@ export default function NotificationBell() {
                   Notifications
                 </CardTitle>
                 <div className="flex items-center gap-2">
-                  {criticalCount > 0 && (
+                  {filteredCriticalCount > 0 && (
                     <Badge className="bg-red-500 text-white text-xs font-sans">
-                      {criticalCount} Critical
+                      {filteredCriticalCount} Critical
                     </Badge>
                   )}
                   <Button 
@@ -153,14 +164,18 @@ export default function NotificationBell() {
 
             <CardContent className="p-0">
               <div className="max-h-80 overflow-y-auto">
-                {notifications.length === 0 ? (
+                {filteredNotifications.length === 0 ? (
                   <div className="p-4 text-center text-gray-500">
                     <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm font-sans">No notifications</p>
+                    {user.role === 'DOCTOR' ? (
+                      <p className="text-sm font-sans">Doctor decisions are sent directly to nurses</p>
+                    ) : (
+                      <p className="text-sm font-sans">No notifications</p>
+                    )}
                   </div>
                 ) : (
                   <div className="divide-y divide-gray-100">
-                    {notifications.map((notification) => (
+                    {filteredNotifications.map((notification) => (
                       <div
                         key={notification.id}
                         onClick={() => handleNotificationClick(notification)}

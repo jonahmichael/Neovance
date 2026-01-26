@@ -16,6 +16,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import CriticalActionPanel from "@/components/CriticalActionPanel";
 import { useNotifications } from "@/contexts/NotificationContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Heart, Activity, Wind, Thermometer, Gauge, TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle2, AlertCircle, Zap } from "lucide-react";
 
 ChartJS.register(
@@ -64,12 +65,12 @@ const CHART_CONFIGS: ChartConfig[] = [
   { 
     id: "hr", 
     name: "Heart Rate", 
-    description: "Detects bradycardia, tachycardia, arrhythmias", 
+    description: "Detects bradycardia, tachycardia, arrhythmias. Note: An average resting heart rate (HR) for adults is 60-100 beats per minute", 
     category: "time-series", 
     xLabel: "Time", 
     yLabel: "HR (bpm)", 
     icon: <Heart className="h-4 w-4" />, 
-    color: "rgb(239, 68, 68)",
+    color: "rgb(255, 107, 107)",
     ranges: {
       normal: "120-160 bpm",
       abnormal: [
@@ -88,7 +89,7 @@ const CHART_CONFIGS: ChartConfig[] = [
     xLabel: "Time", 
     yLabel: "SpO2 (%)", 
     icon: <Activity className="h-4 w-4" />, 
-    color: "rgb(168, 85, 247)",
+    color: "rgb(129, 140, 248)",
     ranges: {
       normal: "90-95% (preterm target)",
       abnormal: [
@@ -106,7 +107,7 @@ const CHART_CONFIGS: ChartConfig[] = [
     xLabel: "Time", 
     yLabel: "RR (breaths/min)", 
     icon: <Wind className="h-4 w-4" />, 
-    color: "rgb(59, 130, 246)",
+    color: "rgb(96, 165, 250)",
     ranges: {
       normal: "30-60 breaths/min",
       abnormal: [
@@ -125,7 +126,7 @@ const CHART_CONFIGS: ChartConfig[] = [
     xLabel: "Time", 
     yLabel: "Temp (C)", 
     icon: <Thermometer className="h-4 w-4" />, 
-    color: "rgb(249, 115, 22)",
+    color: "rgb(251, 146, 60)",
     ranges: {
       normal: "36.5-37.5 C",
       abnormal: [
@@ -143,7 +144,7 @@ const CHART_CONFIGS: ChartConfig[] = [
     xLabel: "Time", 
     yLabel: "MAP (mmHg)", 
     icon: <Gauge className="h-4 w-4" />, 
-    color: "rgb(34, 197, 94)",
+    color: "rgb(52, 211, 153)",
     ranges: {
       normal: "Preterm: 30-40 mmHg | Term: 45-65 mmHg",
       abnormal: [
@@ -167,33 +168,60 @@ export default function VitalsAndTrends() {
   const [currentTime, setCurrentTime] = useState("");
   const [useFallbackData, setUseFallbackData] = useState(true);
   const [isHighRisk, setIsHighRisk] = useState(false);
-  const { setActiveSepsisAlert } = useNotifications();
+  const { setActiveSepsisAlert, addNotification } = useNotifications();
+  const { user } = useAuth();
+
+  // Track baseline values for smooth transitions
+  const [baselineVitals, setBaselineVitals] = useState({
+    hr: 140,
+    spo2: 94,
+    rr: 45,
+    temp: 37.0,
+    map: 42
+  });
 
   const generateFallbackVitals = (isHighRisk: boolean): VitalData => {
     const now = new Date().toISOString();
     
     if (isHighRisk) {
-      // High-risk/sepsis vitals
+      // High-risk/sepsis vitals - more dramatic values
       return {
         timestamp: now,
-        hr: 190 + Math.random() * 20,     // 190-210 bpm (tachycardia)
-        spo2: 82 + Math.random() * 5,     // 82-87% (hypoxia)
-        rr: 75 + Math.random() * 15,      // 75-90 breaths/min (tachypnea) 
-        temp: 38.2 + Math.random() * 1.0, // 38.2-39.2°C (fever)
-        map: 22 + Math.random() * 8,      // 22-30 mmHg (hypotension)
+        hr: 195 + Math.random() * 15,     // 195-210 bpm (severe tachycardia)
+        spo2: 78 + Math.random() * 8,     // 78-86% (severe hypoxia)
+        rr: 80 + Math.random() * 20,      // 80-100 breaths/min (severe tachypnea) 
+        temp: 38.5 + Math.random() * 1.0, // 38.5-39.5°C (high fever)
+        map: 20 + Math.random() * 10,     // 20-30 mmHg (severe hypotension)
         risk_score: 0.85 + Math.random() * 0.1, // High risk score
         status: "CRITICAL"
       };
     } else {
-      // Normal/low-moderate risk vitals
+      // Normal/stable vitals with minimal variation (±2-3 from baseline)
+      const newVitals = {
+        hr: Math.max(120, Math.min(160, baselineVitals.hr + (Math.random() - 0.5) * 6)), // ±3 bpm
+        spo2: Math.max(91, Math.min(97, baselineVitals.spo2 + (Math.random() - 0.5) * 3)), // ±1.5%
+        rr: Math.max(35, Math.min(55, baselineVitals.rr + (Math.random() - 0.5) * 6)), // ±3 breaths/min
+        temp: Math.max(36.5, Math.min(37.8, baselineVitals.temp + (Math.random() - 0.5) * 0.4)), // ±0.2°C
+        map: Math.max(30, Math.min(55, baselineVitals.map + (Math.random() - 0.5) * 6)) // ±3 mmHg
+      };
+
+      // Gradually drift baseline values very slowly for natural variation
+      setBaselineVitals(prev => ({
+        hr: prev.hr + (Math.random() - 0.5) * 0.5,
+        spo2: prev.spo2 + (Math.random() - 0.5) * 0.2,
+        rr: prev.rr + (Math.random() - 0.5) * 0.3,
+        temp: prev.temp + (Math.random() - 0.5) * 0.02,
+        map: prev.map + (Math.random() - 0.5) * 0.3
+      }));
+
       return {
         timestamp: now,
-        hr: 130 + Math.random() * 25,     // 130-155 bpm (normal range)
-        spo2: 92 + Math.random() * 4,     // 92-96% (normal target)
-        rr: 40 + Math.random() * 15,      // 40-55 breaths/min (normal)
-        temp: 36.7 + Math.random() * 0.6, // 36.7-37.3°C (normal)
-        map: 35 + Math.random() * 15,     // 35-50 mmHg (normal)
-        risk_score: 0.15 + Math.random() * 0.25, // Low-moderate risk
+        hr: Math.round(newVitals.hr),
+        spo2: Math.round(newVitals.spo2),
+        rr: Math.round(newVitals.rr),
+        temp: Math.round(newVitals.temp * 10) / 10, // 1 decimal place
+        map: Math.round(newVitals.map),
+        risk_score: 0.10 + Math.random() * 0.15, // Very low risk
         status: "OK"
       };
     }
@@ -242,6 +270,24 @@ export default function VitalsAndTrends() {
     try {
       setSepsisTriggered(true);
       setIsHighRisk(true); // Switch to high-risk vitals
+      
+      // Immediately create sepsis alert notification
+      const sepsisAlert = {
+        alert_id: Date.now(), // Use timestamp as unique ID
+        baby_id: "B001",
+        model_risk_score: 0.875,
+        alert_status: "PENDING_DOCTOR_ACTION",
+        timestamp: new Date().toISOString(),
+        doctor_action: null,
+        action_detail: null,
+        observation_duration: null,
+        lab_tests: null,
+        antibiotics: null,
+        updated_at: new Date().toISOString()
+      };
+      
+      // Show the alert immediately
+      setActiveSepsisAlert(sepsisAlert);
       
       const response = await fetch("http://localhost:8000/trigger-sepsis", {
         method: "POST",
@@ -442,27 +488,27 @@ export default function VitalsAndTrends() {
 
     switch (selectedChart) {
       case "hr":
-        datasets = [{ label: "Heart Rate", data: data.map((d) => d.hr), borderColor: "rgb(239, 68, 68)", backgroundColor: "rgba(239, 68, 68, 0.1)", tension: 0.3, fill: true, pointRadius: 2 }];
+        datasets = [{ label: "Heart Rate", data: data.map((d) => d.hr), borderColor: "rgb(255, 107, 107)", backgroundColor: "rgba(255, 107, 107, 0.1)", tension: 0.3, fill: true, pointRadius: 2 }];
         break;
       case "spo2":
-        datasets = [{ label: "SpO2", data: data.map((d) => d.spo2), borderColor: "rgb(168, 85, 247)", backgroundColor: "rgba(168, 85, 247, 0.1)", tension: 0.3, fill: true, pointRadius: 2 }];
+        datasets = [{ label: "SpO2", data: data.map((d) => d.spo2), borderColor: "rgb(129, 140, 248)", backgroundColor: "rgba(129, 140, 248, 0.1)", tension: 0.3, fill: true, pointRadius: 2 }];
         break;
       case "rr":
-        datasets = [{ label: "Respiratory Rate", data: data.map((d) => d.rr), borderColor: "rgb(59, 130, 246)", backgroundColor: "rgba(59, 130, 246, 0.1)", tension: 0.3, fill: true, pointRadius: 2 }];
+        datasets = [{ label: "Respiratory Rate", data: data.map((d) => d.rr), borderColor: "rgb(96, 165, 250)", backgroundColor: "rgba(96, 165, 250, 0.1)", tension: 0.3, fill: true, pointRadius: 2 }];
         break;
       case "temp":
-        datasets = [{ label: "Temperature", data: data.map((d) => d.temp), borderColor: "rgb(249, 115, 22)", backgroundColor: "rgba(249, 115, 22, 0.1)", tension: 0.3, fill: true, pointRadius: 2 }];
+        datasets = [{ label: "Temperature", data: data.map((d) => d.temp), borderColor: "rgb(251, 146, 60)", backgroundColor: "rgba(251, 146, 60, 0.1)", tension: 0.3, fill: true, pointRadius: 2 }];
         break;
       case "map":
-        datasets = [{ label: "MAP", data: data.map((d) => d.map), borderColor: "rgb(34, 197, 94)", backgroundColor: "rgba(34, 197, 94, 0.1)", tension: 0.3, fill: true, pointRadius: 2 }];
+        datasets = [{ label: "MAP", data: data.map((d) => d.map), borderColor: "rgb(52, 211, 153)", backgroundColor: "rgba(52, 211, 153, 0.1)", tension: 0.3, fill: true, pointRadius: 2 }];
         break;
       case "all":
         datasets = [
-          { label: "HR", data: data.map((d) => d.hr), borderColor: "rgb(239, 68, 68)", backgroundColor: "transparent", tension: 0.3, fill: false, pointRadius: 0 },
-          { label: "SpO2", data: data.map((d) => d.spo2), borderColor: "rgb(168, 85, 247)", backgroundColor: "transparent", tension: 0.3, fill: false, pointRadius: 0 },
-          { label: "RR", data: data.map((d) => d.rr), borderColor: "rgb(59, 130, 246)", backgroundColor: "transparent", tension: 0.3, fill: false, pointRadius: 0 },
-          { label: "Temp x10", data: data.map((d) => d.temp * 2.5), borderColor: "rgb(249, 115, 22)", backgroundColor: "transparent", tension: 0.3, fill: false, pointRadius: 0 },
-          { label: "MAP", data: data.map((d) => d.map), borderColor: "rgb(34, 197, 94)", backgroundColor: "transparent", tension: 0.3, fill: false, pointRadius: 0 },
+          { label: "HR", data: data.map((d) => d.hr), borderColor: "rgb(255, 107, 107)", backgroundColor: "transparent", tension: 0.3, fill: false, pointRadius: 0 },
+          { label: "SpO2", data: data.map((d) => d.spo2), borderColor: "rgb(129, 140, 248)", backgroundColor: "transparent", tension: 0.3, fill: false, pointRadius: 0 },
+          { label: "RR", data: data.map((d) => d.rr), borderColor: "rgb(96, 165, 250)", backgroundColor: "transparent", tension: 0.3, fill: false, pointRadius: 0 },
+          { label: "Temp x10", data: data.map((d) => d.temp * 2.5), borderColor: "rgb(251, 146, 60)", backgroundColor: "transparent", tension: 0.3, fill: false, pointRadius: 0 },
+          { label: "MAP", data: data.map((d) => d.map), borderColor: "rgb(52, 211, 153)", backgroundColor: "transparent", tension: 0.3, fill: false, pointRadius: 0 },
         ];
         break;
     }
@@ -472,9 +518,9 @@ export default function VitalsAndTrends() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "OK": return "text-green-600 bg-green-100";
+      case "OK": return "text-emerald-600 bg-emerald-100";
       case "WARNING": return "text-yellow-600 bg-yellow-100";
-      case "CRITICAL": return "text-red-600 bg-red-100";
+      case "CRITICAL": return "text-rose-600 bg-rose-100";
       default: return "text-gray-600 bg-gray-100";
     }
   };
@@ -486,11 +532,11 @@ export default function VitalsAndTrends() {
       {/* Vital Signs Cards */}
       <div className="grid grid-cols-5 gap-4">
         {[
-          { key: "hr", label: "Heart Rate", value: latestData?.hr, unit: "bpm", icon: <Heart className="h-5 w-5" />, color: "text-red-500", bg: "bg-red-50" },
-          { key: "spo2", label: "SpO2", value: latestData?.spo2, unit: "%", icon: <Activity className="h-5 w-5" />, color: "text-purple-500", bg: "bg-purple-50" },
-          { key: "rr", label: "Resp Rate", value: latestData?.rr, unit: "/min", icon: <Wind className="h-5 w-5" />, color: "text-blue-500", bg: "bg-blue-50" },
-          { key: "temp", label: "Temperature", value: latestData?.temp?.toFixed(1), unit: "C", icon: <Thermometer className="h-5 w-5" />, color: "text-orange-500", bg: "bg-orange-50" },
-          { key: "map", label: "MAP", value: latestData?.map, unit: "mmHg", icon: <Gauge className="h-5 w-5" />, color: "text-green-500", bg: "bg-green-50" },
+          { key: "hr", label: "Heart Rate", value: latestData?.hr, unit: "bpm", icon: <Heart className="h-5 w-5" />, color: "text-rose-400", bg: "bg-rose-50" },
+          { key: "spo2", label: "SpO2", value: latestData?.spo2, unit: "%", icon: <Activity className="h-5 w-5" />, color: "text-indigo-400", bg: "bg-indigo-50" },
+          { key: "rr", label: "Resp Rate", value: latestData?.rr, unit: "/min", icon: <Wind className="h-5 w-5" />, color: "text-sky-400", bg: "bg-sky-50" },
+          { key: "temp", label: "Temperature", value: latestData?.temp?.toFixed(1), unit: "C", icon: <Thermometer className="h-5 w-5" />, color: "text-amber-400", bg: "bg-amber-50" },
+          { key: "map", label: "MAP", value: latestData?.map, unit: "mmHg", icon: <Gauge className="h-5 w-5" />, color: "text-teal-400", bg: "bg-teal-50" },
         ].map((vital) => (
           <Card key={vital.key} className={`${vital.bg} border-none shadow-sm`}>
             <CardContent className="p-4">
@@ -532,11 +578,11 @@ export default function VitalsAndTrends() {
           </button>
         </div>
         <div className="flex items-center gap-2">
-          <span className={`text-sm px-2 py-1 rounded ${wsStatus === "Connected" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
+          <span className={`text-sm px-2 py-1 rounded ${wsStatus === "Connected" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
             {wsStatus}
           </span>
           {isHighRisk && (
-            <span className="text-sm px-2 py-1 rounded bg-red-100 text-red-700 font-medium animate-pulse">
+            <span className="text-sm px-2 py-1 rounded bg-rose-100 text-rose-700 font-medium animate-pulse">
               High Risk Mode
             </span>
           )}
@@ -545,13 +591,49 @@ export default function VitalsAndTrends() {
             disabled={sepsisTriggered}
             className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
               sepsisTriggered 
-                ? "bg-red-600 text-white cursor-not-allowed animate-pulse" 
-                : "bg-red-500 text-white hover:bg-red-600"
+                ? "bg-rose-600 text-white cursor-not-allowed animate-pulse" 
+                : "bg-rose-500 text-white hover:bg-rose-600"
             }`}
           >
             <Zap className="h-4 w-4" />
             {sepsisTriggered ? "Sepsis Active..." : "Trigger Sepsis"}
           </button>
+          {user?.role === 'DOCTOR' && (
+            <button
+              onClick={triggerTestAlert}
+              className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 bg-blue-500 text-white hover:bg-blue-600"
+            >
+              <AlertTriangle className="h-4 w-4" />
+              Test Doctor Panel
+            </button>
+          )}
+          {user?.role === 'NURSE' && (
+            <button
+              onClick={() => {
+                console.log('Testing nurse notification');
+                addNotification({
+                  type: 'CRITICAL_ACTION',
+                  message: '🏥 Test notification for nurse',
+                  details: {
+                    doctor: 'Test Doctor',
+                    doctorId: 'TEST001',
+                    patient: 'Baby B001',
+                    mrn: 'B001',
+                    action: 'Test Action',
+                    actionDetails: 'This is a test notification',
+                    timestamp: new Date().toISOString(),
+                    priority: 'URGENT',
+                    requiresAcknowledgment: true
+                  },
+                  timestamp: new Date().toISOString()
+                });
+              }}
+              className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 bg-green-500 text-white hover:bg-green-600"
+            >
+              <AlertTriangle className="h-4 w-4" />
+              Test Nurse Notification
+            </button>
+          )}
         </div>
       </div>
 
