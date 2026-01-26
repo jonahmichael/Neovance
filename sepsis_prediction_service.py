@@ -13,10 +13,12 @@ import joblib
 import numpy as np
 import pandas as pd
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import os
 import logging
 from contextlib import asynccontextmanager
+import psycopg2
+import json
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -27,6 +29,15 @@ MODEL_PATH = "trained_models/sepsis_random_forest.pkl"
 SCALER_PATH = "trained_models/feature_scaler.pkl" 
 FEATURE_PATH = "trained_models/feature_columns.pkl"
 METADATA_PATH = "trained_models/model_metadata.json"
+
+# Database configuration
+DB_CONFIG = {
+    "host": "localhost",
+    "database": "neovance_hil", 
+    "user": "postgres",
+    "password": "password",
+    "port": 5432
+}
 
 # Global model storage
 model = None
@@ -132,13 +143,16 @@ class SepsisRiskResponse(BaseModel):
     mrn: str
     timestamp: str
     
-    # Primary prediction
-    sepsis_probability: float  # 0.0 - 1.0
+    # Primary prediction (HIL-focused)
+    risk_score: float  # 0.0 - 1.0 (primary score for HIL workflow)
+    sepsis_probability: float  # 0.0 - 1.0 (same as risk_score)
     sepsis_risk_percentage: float  # 0 - 100%
     
     # Clinical decision support
+    onset_window_hrs: int  # 6, 12, 24, 48
+    alert_reason: str  # Human-readable explanation
+    is_critical_alert: bool  # True if immediate action needed
     risk_category: str  # LOW_RISK, MODERATE_RISK, HIGH_RISK, CRITICAL_RISK
-    estimated_onset_hours: int  # 6, 12, 24, 48
     clinical_recommendation: str
     
     # EOS risk calculator results
@@ -152,6 +166,26 @@ class SepsisRiskResponse(BaseModel):
     # Model metadata
     model_confidence: float
     feature_importance_top3: Dict[str, float]
+    features_snapshot: Dict[str, Any]  # For HIL logging
+
+
+class DoctorActionRequest(BaseModel):
+    """Request model for logging doctor actions (HIL)"""
+    
+    mrn: str
+    doctor_id: str
+    action_type: str  # 'Treat', 'Lab', 'Observe', 'Dismiss'
+    action_detail: str  # e.g., 'Ampi+Genta', '4 hours'
+    ml_prediction_snapshot: Dict[str, Any]  # Full JSON of prediction
+
+
+class DoctorActionResponse(BaseModel):
+    """Response model for doctor action logging"""
+    
+    success: bool
+    alert_id: int
+    message: str
+    timestamp: str
 
 
 # --- EOS RISK CALCULATOR FUNCTIONS ---
@@ -367,6 +401,131 @@ def categorize_risk_level(risk_probability: float) -> str:
         return "LOW_RISK"
 
 
+def generate_alert_reason(risk_score: float, patient_data: dict, top_features: dict) -> str:
+    """Generate human-readable alert reason for clinical staff"""
+    reasons = []
+    
+    # Check vital sign abnormalities
+    if patient_data.get('temp_celsius', 37.0) >= 38.0:
+        reasons.append("Temperature elevated")
+    if patient_data.get('hr', 120) >= 160:
+        reasons.append("Tachycardia")
+    if patient_data.get('spo2', 97) <= 92:
+        reasons.append("Desaturation")
+    if patient_data.get('map', 40) <= 30:
+        reasons.append("Hypotension")
+    
+    # Check high-risk factors
+    if patient_data.get('gestational_age_at_birth_weeks', 39) < 37:
+        reasons.append("Preterm birth")
+    if patient_data.get('gbs_status', 'negative') == 'positive' and patient_data.get('antibiotic_type', 'none') == 'none':
+        reasons.append("GBS+ without prophylaxis")
+    if patient_data.get('clinical_exam', 'normal') == 'abnormal':
+        reasons.append("Abnormal clinical exam")
+    if patient_data.get('central_venous_line', 'no') == 'yes':
+        reasons.append("Central line present")
+    if patient_data.get('inotrope_at_time_of_sepsis_eval', 'no') == 'yes':
+        reasons.append("Inotrope support")
+    
+    if reasons:
+        return f"High risk - {' & '.join(reasons[:3])}"  # Limit to top 3 reasons
+    else:
+        return f"Risk score: {risk_score:.2f}"
+
+
+# --- DATABASE UTILITIES ---
+
+def get_db_connection():
+    """Get PostgreSQL database connection"""
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        return conn
+    except Exception as e:
+        logger.error(f"Database connection failed: {e}")
+        return None
+
+
+def log_prediction_to_database(prediction_result: dict, patient_data: dict):
+    """Log ML prediction to database for potential HIL learning"""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return False
+            
+        cursor = conn.cursor()
+        
+        # Insert prediction into alerts table (without doctor action initially)
+        insert_query = """
+            INSERT INTO alerts (timestamp, mrn, risk_score, features_json)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id;
+        """
+        
+        cursor.execute(insert_query, (
+            datetime.now(),
+            patient_data['mrn'],
+            prediction_result['risk_score'],
+            json.dumps(prediction_result['features_snapshot'])
+        ))
+        
+        alert_id = cursor.fetchone()[0]
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        logger.info(f"Logged prediction for MRN {patient_data['mrn']}, alert_id: {alert_id}")
+        return alert_id
+        
+    except Exception as e:
+        logger.error(f"Failed to log prediction: {e}")
+        return None
+
+
+def log_doctor_action_to_database(action_request: DoctorActionRequest) -> tuple:
+    """Log doctor action to HIL database"""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return False, 0, "Database connection failed"
+            
+        cursor = conn.cursor()
+        
+        # Extract prediction data
+        prediction = action_request.ml_prediction_snapshot
+        
+        # Insert into alerts table with doctor action
+        insert_query = """
+            INSERT INTO alerts (
+                timestamp, mrn, risk_score, features_json, 
+                doctor_id, doctor_action, action_detail
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id;
+        """
+        
+        cursor.execute(insert_query, (
+            datetime.now(),
+            action_request.mrn,
+            prediction.get('risk_score', 0.0),
+            json.dumps(prediction.get('features_snapshot', {})),
+            action_request.doctor_id,
+            action_request.action_type,
+            action_request.action_detail
+        ))
+        
+        alert_id = cursor.fetchone()[0]
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        logger.info(f"HIL Action logged: Doctor {action_request.doctor_id} -> {action_request.action_type} for MRN {action_request.mrn}")
+        return True, alert_id, "Action logged successfully"
+        
+    except Exception as e:
+        logger.error(f"Failed to log doctor action: {e}")
+        return False, 0, f"Database error: {str(e)}"
+
+
 # --- API STARTUP AND SHUTDOWN ---
 
 async def load_models():
@@ -436,16 +595,13 @@ async def health_check():
     }
 
 
-@app.post("/predict", response_model=SepsisRiskResponse)
-async def predict_sepsis_risk(patient_vitals: PatientVitals):
+@app.post("/predict_risk", response_model=SepsisRiskResponse)
+async def predict_sepsis_risk_realtime(patient_vitals: PatientVitals):
     """
-    Predict sepsis risk for a neonatal patient
+    Real-time sepsis risk prediction for HIL workflow
     
-    Returns comprehensive risk assessment including:
-    - ML model probability
-    - EOS risk score
-    - Clinical recommendations
-    - Estimated onset timing
+    This is the core endpoint called by Pathway when critical thresholds are crossed.
+    Returns comprehensive risk assessment including HIL-ready data structures.
     """
     if model is None or feature_names is None:
         raise HTTPException(status_code=503, detail="Prediction models not loaded")
@@ -483,14 +639,15 @@ async def predict_sepsis_risk(patient_vitals: PatientVitals):
         
         # Generate clinical decision support
         risk_category = categorize_risk_level(ml_probability)
-        estimated_hours = risk_to_hours(ml_probability)
+        onset_hours = risk_to_hours(ml_probability)
         clinical_recommendation = get_clinical_recommendation(ml_probability, eos_category)
+        is_critical_alert = ml_probability >= 0.8 or eos_category == "HIGH_RISK"
         
-        # Calculate model confidence (simplified approach)
+        # Calculate model confidence
         probabilities = model.predict_proba(feature_vector.reshape(1, -1))[0]
         confidence = max(probabilities) - min(probabilities)
         
-        # Get top feature importances (if available)
+        # Get top feature importances
         feature_importance_top3 = {}
         if hasattr(model, 'feature_importances_'):
             importances = model.feature_importances_
@@ -500,30 +657,104 @@ async def predict_sepsis_risk(patient_vitals: PatientVitals):
                 for i in top_indices
             }
         
-        # Construct response
+        # Create features snapshot for HIL logging
+        features_snapshot = {
+            'patient_data': patient_data,
+            'eos_risk': eos_risk,
+            'eos_category': eos_category,
+            'physiological_instability_score': instability_score,
+            'feature_vector': feature_vector.tolist(),
+            'model_confidence': float(confidence),
+            'prediction_timestamp': datetime.now().isoformat()
+        }
+        
+        # Generate alert reason
+        alert_reason = generate_alert_reason(ml_probability, patient_data, feature_importance_top3)
+        
+        # Construct HIL-focused response
         response = SepsisRiskResponse(
             mrn=patient_vitals.mrn,
             timestamp=patient_data['timestamp'],
+            risk_score=round(float(ml_probability), 4),  # Primary score for HIL
             sepsis_probability=round(float(ml_probability), 4),
             sepsis_risk_percentage=round(float(ml_probability * 100), 2),
+            onset_window_hrs=onset_hours,
+            alert_reason=alert_reason,
+            is_critical_alert=is_critical_alert,
             risk_category=risk_category,
-            estimated_onset_hours=estimated_hours,
             clinical_recommendation=clinical_recommendation,
             eos_risk_score=round(eos_risk, 2),
             eos_category=eos_category,
             physiological_instability_score=instability_score,
             vital_signs_alert=vital_signs_alert,
             model_confidence=round(confidence, 4),
-            feature_importance_top3=feature_importance_top3
+            feature_importance_top3=feature_importance_top3,
+            features_snapshot=features_snapshot
         )
         
-        logger.info(f"Prediction completed for MRN: {patient_vitals.mrn}, Risk: {ml_probability:.3f}")
+        # Log prediction to database for potential HIL learning
+        log_prediction_to_database(response.dict(), patient_data)
+        
+        logger.info(f"Real-time prediction: MRN {patient_vitals.mrn}, Risk: {ml_probability:.3f}, Critical: {is_critical_alert}")
         
         return response
         
     except Exception as e:
         logger.error(f"Prediction error for MRN {patient_vitals.mrn}: {e}")
         raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
+
+
+@app.post("/log_doctor_action", response_model=DoctorActionResponse)
+async def log_doctor_action(action_request: DoctorActionRequest):
+    """
+    Log doctor action for Human-in-the-Loop learning
+    
+    This endpoint captures the critical feedback loop:
+    State (ML Prediction) → Action (Doctor Decision) → [Future Outcome]
+    """
+    try:
+        # Validate action type
+        valid_actions = ['Treat', 'Lab', 'Observe', 'Dismiss']
+        if action_request.action_type not in valid_actions:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Invalid action_type. Must be one of: {valid_actions}"
+            )
+        
+        # Log to HIL database
+        success, alert_id, message = log_doctor_action_to_database(action_request)
+        
+        if not success:
+            raise HTTPException(status_code=500, detail=message)
+        
+        # Log for monitoring
+        prediction = action_request.ml_prediction_snapshot
+        risk_score = prediction.get('risk_score', 0.0)
+        
+        logger.info(
+            f"HIL Feedback: Doctor {action_request.doctor_id} chose '{action_request.action_type}' "
+            f"for MRN {action_request.mrn} (Risk: {risk_score:.3f})"
+        )
+        
+        return DoctorActionResponse(
+            success=True,
+            alert_id=alert_id,
+            message="Doctor action logged successfully for HIL learning",
+            timestamp=datetime.now().isoformat()
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to log doctor action: {e}")
+        raise HTTPException(status_code=500, detail=f"Logging failed: {str(e)}")
+
+
+# Keep the original /predict endpoint for backward compatibility
+@app.post("/predict", response_model=SepsisRiskResponse)
+async def predict_sepsis_risk_legacy(patient_vitals: PatientVitals):
+    """Legacy prediction endpoint - redirects to predict_risk"""
+    return await predict_sepsis_risk_realtime(patient_vitals)
 
 
 @app.get("/model/info")
