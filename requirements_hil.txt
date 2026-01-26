@@ -1,0 +1,15 @@
+# PostgreSQL/TimescaleDB Requirements for HIL System
+asyncpg==0.29.0
+psycopg2-binary==2.9.9
+sqlalchemy[asyncio]==2.0.25
+
+# Existing requirements
+fastapi==0.109.0
+uvicorn==0.25.0
+websockets==12.0
+pandas==2.1.4
+numpy==1.24.3
+pathway[all]==0.13.16
+scikit-learn==1.3.2
+pydantic==2.5.3
+python-multipart==0.0.6
