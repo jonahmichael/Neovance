@@ -24,9 +24,36 @@ cd /mnt/d/Neovance-AI
 python run_neovance.py
 ```
 
+### 🏥 **Multi-Dashboard Mode (Recommended for Testing)**
+
+For human-in-the-loop testing with separate doctor and nurse dashboards:
+
+```bash
+cd /mnt/d/Neovance-AI
+python run_neovance.py --multi-dashboard
+```
+
 This will start:
 - 🔧 **Backend API** (FastAPI): http://localhost:8000
-- 📊 **Frontend Dashboard** (Next.js): http://localhost:3005  
+- 👨‍⚕️ **Doctor Dashboard**: http://localhost:3000  
+- 👩‍⚕️ **Nurse Dashboard**: http://localhost:3001
+- 🔬 **EOS Risk Calculator**: Real-time risk assessment
+- 💾 **Database**: SQLite with live vitals storage
+- 🌐 **WebSocket**: Live data streaming
+
+### 🔑 **Login Credentials**
+
+**Doctors:**
+- DR001 / password@dr (Dr. Rajesh Kumar)
+- DR002 / password@dr (Dr. Priya Sharma)
+
+**Nurses:**
+- NS001 / password@ns (Anjali Patel)
+- NS002 / password@ns (Deepika Singh)
+
+This will start:
+- 🔧 **Backend API** (FastAPI): http://localhost:8000
+- 📊 **Frontend Dashboard** (Next.js): http://localhost:3000  
 - 🔬 **EOS Risk Calculator**: Real-time risk assessment
 - 💾 **Database**: SQLite with live vitals storage
 - 🌐 **WebSocket**: Live data streaming
@@ -79,15 +106,103 @@ The **Puopolo/Kaiser Early-Onset Sepsis Risk Calculator** provides:
 
 ## 🔧 **Troubleshooting**
 
-### Port Conflicts:
+### ⚠️ **Frontend/ETL Processes Stopping**
+
+If the frontend or pathway ETL processes keep stopping:
+
+**1. Kill existing processes:**
+```bash
+# Stop all related processes
+pkill -f "python.*run_neovance"
+pkill -f "npm.*dev"
+pkill -f "uvicorn"
+
+# Wait a moment
+sleep 3
+```
+
+**2. Check for port conflicts:**
+```bash
+# Check what's using the ports
+lsof -i :8000 -i :3000 -i :3001
+
+# Kill specific processes if needed
+sudo kill -9 <PID>
+```
+
+**3. Use alternative ports:**
+```bash
+# Run with different ports
+python run_neovance.py --multi-dashboard --doctor-port 3002 --nurse-port 3003
+```
+
+**4. Run components separately (if issues persist):**
+```bash
+# Terminal 1: Backend only
+python run_neovance.py --skip-frontend
+
+# Terminal 2: Frontend manually
+cd frontend/dashboard
+npm run dev -- --port 3000
+
+# Terminal 3: Pathway ETL manually  
+cd backend
+python pathway_etl.py
+```
+
+### 🐛 **Common Issues**
+
+**Port Conflicts:**
+- Frontend may use port 3002/3003 if 3000/3001 are occupied
+- Backend always tries port 8000 first
+- Use `--doctor-port` and `--nurse-port` flags to specify different ports
+
+**Process Management:**
+- The runner automatically monitors processes and restarts them
+- If a critical process (Backend API) stops, all processes will shutdown
+- Use `Ctrl+C` to cleanly stop all services
+
+**Dependencies:**
+```bash
+# Reinstall frontend dependencies if needed
+cd frontend/dashboard
+rm -rf node_modules package-lock.json
+npm install
+
+# Reinstall Python dependencies if needed
+pip install -r requirements.txt
+```
+
+### 📊 **Process Monitoring**
+
+The application includes built-in process monitoring:
+- All processes are tracked and monitored
+- Failed processes trigger automatic cleanup
+- Verbose logging shows process status
+
+**Enable verbose mode:**
+```bash
+python run_neovance.py --multi-dashboard --verbose
+```
+
+**Check process status:**
+```bash
+# View running processes
+ps aux | grep "run_neovance\|npm.*dev\|uvicorn"
+
+# Check port usage
+netstat -tulpn | grep -E ":(8000|3000|3001|3002|3003)"
+```
+
+Port Conflicts:
 - Frontend may use port 3005 if 3000 is occupied
 - Backend always uses port 8000
 
-### Virtual Environment:
+Virtual Environment:
 - The system can run without venv but packages may be missing
 - For full functionality, use virtual environment
 
-### Dependencies:
+Dependencies:
 - EOS calculator requires only Python standard library
 - Full stack needs FastAPI, React/Next.js dependencies
 
@@ -116,6 +231,51 @@ The EOS Risk Calculator is production-ready with:
 - ✅ Database persistence
 - ✅ WebSocket streaming
 - ✅ Clinical decision support integration
+
+## 🚀 **Step-by-Step Startup Guide**
+
+**For beginners or if having issues:**
+
+1. **Clean start:**
+   ```bash
+   cd /mnt/d/Neovance-AI
+   pkill -f "python.*run_neovance|npm.*dev|uvicorn"
+   sleep 3
+   ```
+
+2. **Check dependencies:**
+   ```bash
+   python --version  # Should be 3.8+
+   node --version    # Should be 18+
+   ```
+
+3. **Install if needed:**
+   ```bash
+   pip install -r requirements.txt
+   cd frontend/dashboard && npm install && cd ../..
+   ```
+
+4. **Run with monitoring:**
+   ```bash
+   python run_neovance.py --multi-dashboard --verbose
+   ```
+
+5. **Access dashboards:**
+   - Doctor: http://localhost:3000
+   - Nurse: http://localhost:3001
+   - API docs: http://localhost:8000/docs
+
+**Success indicators:**
+- ✅ "Backend API" shows "Starting" then stabilizes
+- ✅ "Frontend (DOCTOR)" shows npm dev server starting
+- ✅ "Frontend (NURSE)" shows npm dev server starting  
+- ✅ "EOS Pathway Simulator" shows data generation
+- ✅ "EOS Pathway ETL" shows processing
+
+**If processes keep stopping:**
+- Check the verbose output for specific error messages
+- Try the manual startup method in troubleshooting section
+- Use alternative ports if conflicts persist
 
 ---
 

@@ -14,6 +14,7 @@ import {
   Filler,
 } from "chart.js";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import CriticalActionPanel from "@/components/CriticalActionPanel";
 import { Heart, Activity, Wind, Thermometer, Gauge, TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle2, AlertCircle, Zap } from "lucide-react";
 
 ChartJS.register(
@@ -360,7 +361,13 @@ export default function VitalsAndTrends() {
   const currentConfig = CHART_CONFIGS.find((c) => c.id === selectedChart)!;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-sans">
+      {/* Critical Action Panel - Doctor Only */}
+      <CriticalActionPanel 
+        patientMRN="B001" 
+        patientName="Amelia Rodriguez" 
+      />
+      
       {/* Vital Signs Cards */}
       <div className="grid grid-cols-5 gap-4">
         {[
@@ -734,7 +741,7 @@ export default function VitalsAndTrends() {
                 className="ml-auto text-blue-600 hover:text-blue-800 text-xs"
                 title="View on MDCalc"
               >
-                📚 Reference
+                Reference
               </a>
             </CardTitle>
           </CardHeader>

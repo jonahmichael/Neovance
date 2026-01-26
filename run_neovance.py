@@ -136,11 +136,13 @@ class ProcessManager:
         self.processes = []
         self.script_dir = Path(__file__).parent.absolute()
         
-    def run_command(self, command, cwd=None, name="Process"):
+    def run_command(self, command, cwd=None, name="Process", env=None):
         """Run a command and track the process"""
         try:
             if cwd is None:
                 cwd = self.script_dir
+            if env is None:
+                env = os.environ.copy()
             
             print_colored(f"Starting {name}...", Colors.CYAN)
             print_colored(f"   Command: {' '.join(command) if isinstance(command, list) else command}", Colors.PURPLE)
@@ -152,7 +154,8 @@ class ProcessManager:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 universal_newlines=True,
-                shell=isinstance(command, str)
+                shell=isinstance(command, str),
+                env=env
             )
             
             self.processes.append({
@@ -290,23 +293,60 @@ class ProcessManager:
         
         return process
     
-    def start_frontend(self):
-        """Start the frontend development server"""
+    def start_frontend(self, port=3000, role=None):
+        """Start the frontend development server with optional port and role"""
         frontend_dir = self.script_dir / "frontend" / "dashboard"
         
         if not frontend_dir.exists():
             print_colored("Frontend directory not found", Colors.RED)
             return None
         
-        command = ["npm", "run", "dev"]
+        # Check if port is available
+        import socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        result = sock.connect_ex(('localhost', port))
+        sock.close()
+        
+        if result == 0:  # Port is in use
+            print_colored(f"Port {port} is already in use", Colors.RED)
+            if role:
+                return None  # Fail for specific role dashboards
+            else:
+                # Try alternative ports for general dashboard
+                for alt_port in [3002, 3003, 3004, 3005]:
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    result = sock.connect_ex(('localhost', alt_port))
+                    sock.close()
+                    if result != 0:
+                        port = alt_port
+                        print_colored(f"Using alternative port {port}", Colors.YELLOW)
+                        break
+                else:
+                    print_colored("No available ports found", Colors.RED)
+                    return None
+        
+        role_suffix = f" ({role.upper()})" if role else ""
+        command = ["npm", "run", "dev", "--", "--port", str(port)]
+        
+        # Set environment variables for role-specific configuration
+        env_vars = os.environ.copy()
+        if role:
+            env_vars["NEXT_PUBLIC_DEFAULT_ROLE"] = role.upper()
+            env_vars["NEXT_PUBLIC_DASHBOARD_TITLE"] = f"Neovance AI - {role.title()} Dashboard"
+        env_vars["PORT"] = str(port)
         
         process = self.run_command(
             command, 
             cwd=frontend_dir,
-            name="Frontend"
+            name=f"Frontend{role_suffix}",
+            env=env_vars
         )
         
         if process:
+            # Update the process info to include port and role
+            self.processes[-1]['port'] = port
+            self.processes[-1]['role'] = role
+            
             monitor_thread = threading.Thread(
                 target=self.monitor_process, 
                 args=[self.processes[-1]], 
@@ -382,6 +422,26 @@ the Puopolo/Kaiser Early-Onset Sepsis risk stratification model.
         help='Start backend and data services only (no frontend)'
     )
     
+    parser.add_argument(
+        '--multi-dashboard',
+        action='store_true',
+        help='Start separate dashboards for doctor and nurse on different ports'
+    )
+    
+    parser.add_argument(
+        '--doctor-port',
+        type=int,
+        default=3000,
+        help='Port for doctor dashboard (default: 3000)'
+    )
+    
+    parser.add_argument(
+        '--nurse-port',
+        type=int,
+        default=3001,
+        help='Port for nurse dashboard (default: 3001)'
+    )
+    
     args = parser.parse_args()
     
     print_header()
@@ -439,8 +499,20 @@ the Puopolo/Kaiser Early-Onset Sepsis risk stratification model.
         
         if not args.skip_frontend:
             time.sleep(3)
-            print_colored("\n📊 Starting Frontend Dashboard...", Colors.GREEN)
-            frontend_process = pm.start_frontend()
+            if args.multi_dashboard:
+                print_colored("\n👨‍⚕️ Starting Doctor Dashboard...", Colors.GREEN)
+                doctor_process = pm.start_frontend(port=args.doctor_port, role="doctor")
+                if doctor_process:
+                    print_colored(f"   Doctor dashboard will be available at http://localhost:{args.doctor_port}", Colors.PURPLE)
+                
+                time.sleep(2)
+                print_colored("\n👩‍⚕️ Starting Nurse Dashboard...", Colors.GREEN)
+                nurse_process = pm.start_frontend(port=args.nurse_port, role="nurse")
+                if nurse_process:
+                    print_colored(f"   Nurse dashboard will be available at http://localhost:{args.nurse_port}", Colors.PURPLE)
+            else:
+                print_colored("\n📊 Starting Frontend Dashboard...", Colors.GREEN)
+                frontend_process = pm.start_frontend()
         
         # Display status
         time.sleep(2)
@@ -450,8 +522,13 @@ the Puopolo/Kaiser Early-Onset Sepsis risk stratification model.
         print_colored("\nAccess your application:", Colors.BLUE)
         
         if not args.skip_frontend:
-            print_colored("   📊 Frontend Dashboard: http://localhost:3000", Colors.GREEN)
-            print_colored("      (may use port 3005 if 3000 is occupied)", Colors.PURPLE)
+            if args.multi_dashboard:
+                print_colored(f"   👨‍⚕️ Doctor Dashboard: http://localhost:{args.doctor_port}", Colors.GREEN)
+                print_colored(f"   👩‍⚕️ Nurse Dashboard: http://localhost:{args.nurse_port}", Colors.GREEN)
+                print_colored("   💡 Use role-specific credentials for testing alerts", Colors.PURPLE)
+            else:
+                print_colored("   📊 Frontend Dashboard: http://localhost:3000", Colors.GREEN)
+                print_colored("      (may use port 3005 if 3000 is occupied)", Colors.PURPLE)
         
         print_colored("   🔧 Backend API: http://localhost:8000", Colors.GREEN)
         print_colored("   📚 API Documentation: http://localhost:8000/docs", Colors.GREEN)
@@ -460,9 +537,23 @@ the Puopolo/Kaiser Early-Onset Sepsis risk stratification model.
         print_colored("   Risk categories: ROUTINE_CARE, ENHANCED_MONITORING, HIGH_RISK", Colors.PURPLE)
         print_colored("   Based on maternal risk factors and clinical assessment", Colors.PURPLE)
         print_colored("\n💡 Tips:", Colors.CYAN)
+        print_colored("   • Doctor credentials: DR001 / password@dr", Colors.CYAN)
+        print_colored("   • Nurse credentials: NS001 / password@ns", Colors.CYAN)
         print_colored("   • Use --demo flag for EOS calculator demonstration", Colors.CYAN)
+        print_colored("   • Use --multi-dashboard for separate doctor/nurse dashboards", Colors.CYAN)
         print_colored("   • Check database: python -c \"import sqlite3; ...\"", Colors.CYAN)
         print_colored("   • Press Ctrl+C to stop all services", Colors.YELLOW)
+        
+        if args.multi_dashboard:
+            print_colored("\\n🚨 Human-in-the-Loop Testing Ready:", Colors.YELLOW)
+            print_colored("   1. Open both dashboard URLs in separate browser tabs/windows", Colors.YELLOW)
+            print_colored("   2. Login as doctor in one, nurse in the other", Colors.YELLOW)
+            print_colored("   3. Take critical actions as doctor - see nurse alerts in real-time", Colors.YELLOW)
+            print_colored("   4. Test communication loop between roles", Colors.YELLOW)
+            print_colored("\\n🔄 Multi-Dashboard Usage Examples:", Colors.BLUE)
+            print_colored("   python run_neovance.py --multi-dashboard", Colors.BLUE)
+            print_colored("   python run_neovance.py --multi-dashboard --doctor-port 3000 --nurse-port 3001", Colors.BLUE)
+        
         print_colored("=" * 60, Colors.CYAN)
         
         # Keep the script running
