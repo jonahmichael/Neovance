@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import PatientProfile from "@/components/PatientProfile";
-import RealTimeChart from "@/components/RealTimeChart";
-import StatisticsCards from "@/components/StatisticsCards";
+import VitalsAndTrends from "@/components/VitalsAndTrends";
 import ClinicalNotes from "@/components/ClinicalNotes";
 import LabResults from "@/components/LabResults";
 import MedicationTab from "@/components/MedicationTab";
@@ -83,12 +82,7 @@ export default function Home() {
 
           {activeView === "profile" && <PatientProfile />}
           
-          {activeView === "vitals" && (
-            <div className="space-y-6">
-              <StatisticsCards />
-              <RealTimeChart />
-            </div>
-          )}
+          {activeView === "vitals" && <VitalsAndTrends />}
           
           {activeView === "notes" && <ClinicalNotes />}
           {activeView === "labs" && <LabResults />}

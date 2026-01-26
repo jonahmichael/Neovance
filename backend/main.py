@@ -65,96 +65,172 @@ class BabyProfile(Base):
     """Comprehensive neonatal profile"""
     __tablename__ = "baby_profiles"
     
-    # Identifier Data
-    mrn = Column(String, primary_key=True)
-    full_name = Column(String, nullable=False)
+    # ===================== IDENTIFIER DATA =====================
+    mrn = Column(String, primary_key=True)  # Medical Record Number (B00x)
+    full_name = Column(String, nullable=False)  # Or "Baby of [Mother's Name]"
     sex = Column(String, nullable=False)
     dob = Column(Date, nullable=False)
     time_of_birth = Column(String, nullable=False)
-    place_of_birth = Column(String, nullable=False)
-    birth_order = Column(String, nullable=False)
+    place_of_birth = Column(String, nullable=False)  # hospital/ward/room
+    birth_order = Column(String, nullable=False)  # singleton, twin, triplet
+    hospital_id_band = Column(String, default="-")  # ID band number
+    footprints_taken = Column(Boolean, default=False)
     
-    # Gestational & Birth Data
-    gestational_age = Column(String, nullable=False)
+    # ===================== GESTATIONAL & BIRTH DATA =====================
+    gestational_age = Column(String, nullable=False)  # weeks + days
     apgar_1min = Column(Integer, nullable=False)
     apgar_5min = Column(Integer, nullable=False)
     apgar_10min = Column(Integer, nullable=True)
     
-    # Parent Information
+    # ===================== PARENT INFORMATION =====================
     mother_name = Column(String, nullable=False)
     father_name = Column(String, nullable=False)
-    parent_contact = Column(String, nullable=False)
+    parent_contact = Column(String, nullable=False)  # phone
     parent_address = Column(String, nullable=False)
     mother_age = Column(Integer, nullable=False)
-    mother_blood_type = Column(String, nullable=False)
+    mother_blood_type = Column(String, nullable=False)  # with Rh factor
+    mother_id = Column(String, default="-")  # hospital/national ID
+    father_id = Column(String, default="-")  # hospital/national ID
+    emergency_contact = Column(String, default="-")
     
-    # Birth Measurements
-    birth_weight = Column(Float, nullable=False)
-    length = Column(Float, nullable=False)
-    head_circumference = Column(Float, nullable=False)
-    chest_circumference = Column(Float, nullable=True)
+    # ===================== BIRTH MEASUREMENTS =====================
+    birth_weight = Column(Float, nullable=False)  # kg
+    length = Column(Float, nullable=False)  # cm
+    head_circumference = Column(Float, nullable=False)  # cm
+    chest_circumference = Column(Float, nullable=True)  # cm
+    bmi = Column(Float, nullable=True)  # calculated
+    weight_percentile = Column(String, default="-")
+    length_percentile = Column(String, default="-")
+    head_percentile = Column(String, default="-")
     
-    # Physical Examination
-    muscle_tone = Column(String, default="-")
-    reflexes = Column(String, default="-")
-    alertness_level = Column(String, default="-")
-    cry_strength = Column(String, default="-")
-    skin_condition = Column(String, default="-")
-    fontanelle_status = Column(String, default="-")
+    # ===================== PHYSICAL EXAMINATION =====================
+    muscle_tone = Column(String, default="-")  # Normal/Hypotonic/Hypertonic
+    reflexes = Column(String, default="-")  # Moro, rooting, sucking, grasp, stepping
+    moro_reflex = Column(String, default="-")
+    rooting_reflex = Column(String, default="-")
+    sucking_reflex = Column(String, default="-")
+    grasp_reflex = Column(String, default="-")
+    stepping_reflex = Column(String, default="-")
+    alertness_level = Column(String, default="-")  # Alert/Drowsy/Lethargic
+    cry_strength = Column(String, default="-")  # Strong/Weak/Absent
+    skin_condition = Column(String, default="-")  # Normal/Jaundice/Cyanotic/Pale
+    birthmarks = Column(String, default="-")
+    bruising = Column(String, default="-")
+    fontanelle_status = Column(String, default="-")  # Flat/Bulging/Sunken
+    eye_exam = Column(String, default="-")
+    ear_exam = Column(String, default="-")
+    nose_throat_exam = Column(String, default="-")
+    genital_exam = Column(String, default="-")
+    anus_patency = Column(String, default="-")  # Patent/Imperforate
+    limb_movement = Column(String, default="-")  # Symmetric/Asymmetric
+    spine_check = Column(String, default="-")
+    hip_check = Column(String, default="-")  # Hip dysplasia screening
     
-    # Sensory Screening
-    hearing_screening = Column(String, default="-")
-    vision_screening = Column(String, default="-")
+    # ===================== SENSORY SCREENING =====================
+    hearing_screening = Column(String, default="-")  # Pass/Refer/Not Done
+    hearing_screening_date = Column(Date, nullable=True)
+    vision_screening = Column(String, default="-")  # Red reflex test
+    red_reflex_right = Column(String, default="-")
+    red_reflex_left = Column(String, default="-")
+    response_to_stimuli = Column(String, default="-")
     
-    # Cardiorespiratory
-    pulse_oximetry = Column(String, default="-")
-    breathing_pattern = Column(String, default="-")
-    heart_sounds = Column(String, default="-")
+    # ===================== CARDIORESPIRATORY SCREENING =====================
+    pulse_oximetry = Column(String, default="-")  # For CHD screening
+    pulse_ox_right_hand = Column(Float, nullable=True)
+    pulse_ox_foot = Column(Float, nullable=True)
+    breathing_pattern = Column(String, default="-")  # Regular/Irregular/Apneic
+    lung_sounds = Column(String, default="-")  # Clear/Crackles/Wheezing
+    heart_sounds = Column(String, default="-")  # Normal/Murmur detected
+    heart_murmur_grade = Column(String, default="-")
     
-    # Laboratory Screening
-    metabolic_screening = Column(String, default="-")
+    # ===================== BLOOD & LAB SCREENING =====================
+    metabolic_screening = Column(String, default="-")  # Overall status
+    metabolic_screening_date = Column(Date, nullable=True)
+    pku_result = Column(String, default="-")  # Phenylketonuria
+    msud_result = Column(String, default="-")  # Maple Syrup Urine Disease
+    galactosemia_result = Column(String, default="-")
+    hypothyroidism_result = Column(String, default="-")  # Congenital hypothyroidism
+    cah_result = Column(String, default="-")  # Congenital adrenal hyperplasia
+    sickle_cell_result = Column(String, default="-")
+    thalassemia_result = Column(String, default="-")
+    cystic_fibrosis_result = Column(String, default="-")
+    scid_result = Column(String, default="-")  # Severe combined immunodeficiency
+    biotinidase_result = Column(String, default="-")
+    genetic_screening_panel = Column(String, default="-")
     blood_glucose = Column(String, default="-")
     bilirubin_level = Column(String, default="-")
-    blood_type = Column(String, default="-")
-    coombs_test = Column(String, default="-")
+    bilirubin_date = Column(Date, nullable=True)
+    blood_type = Column(String, default="-")  # Baby's blood type
+    rh_factor = Column(String, default="-")
+    coombs_test = Column(String, default="-")  # Direct Coombs
     
-    # Immunizations
+    # ===================== IMMUNIZATIONS & PROPHYLAXIS =====================
     vitamin_k_given = Column(Boolean, default=False)
+    vitamin_k_date = Column(Date, nullable=True)
     hep_b_vaccine = Column(Boolean, default=False)
-    eye_prophylaxis = Column(Boolean, default=False)
+    hep_b_date = Column(Date, nullable=True)
+    eye_prophylaxis = Column(Boolean, default=False)  # Antibiotic ointment
+    eye_prophylaxis_date = Column(Date, nullable=True)
+    other_vaccines = Column(String, default="-")
     
-    # Feeding & Elimination
-    feeding_method = Column(String, default="-")
-    feeding_tolerance = Column(String, default="-")
-    urine_output = Column(String, default="-")
-    stool_output = Column(String, default="-")
+    # ===================== FEEDING & ELIMINATION =====================
+    feeding_method = Column(String, default="-")  # Breastfeeding/Formula/Mixed/NPO
+    feeding_tolerance = Column(String, default="-")  # Good/Poor/Vomiting
+    feeds_per_day = Column(Integer, nullable=True)
+    urine_output = Column(String, default="-")  # Normal/Decreased/Absent
+    first_void_time = Column(String, default="-")
+    stool_output = Column(String, default="-")  # Meconium/Transitional/Normal
+    meconium_passage_time = Column(String, default="-")
+    vomiting = Column(String, default="-")  # None/Occasional/Frequent
+    reflux = Column(String, default="-")
     
-    # Clinical Course
+    # ===================== CLINICAL COURSE =====================
+    bed_assignment = Column(String, default="-")  # Incubator/Crib/Warmer
     nicu_admission = Column(Boolean, default=False)
-    oxygen_support = Column(String, default="-")
+    nicu_admission_reason = Column(String, default="-")
+    oxygen_support = Column(String, default="-")  # None/Nasal cannula/CPAP/Ventilator
+    fio2 = Column(Float, nullable=True)  # Fraction of inspired oxygen
+    iv_fluids = Column(String, default="-")
     medications = Column(Text, default="-")
-    procedures = Column(Text, default="-")
+    antibiotics = Column(String, default="-")
+    procedures = Column(Text, default="-")  # Surgeries, procedures
+    monitoring_events = Column(Text, default="-")  # Alarms, events
+    infection_screening = Column(String, default="-")
     
-    # Risk & History
-    maternal_infections = Column(String, default="-")
-    delivery_method = Column(String, nullable=False)
+    # ===================== RISK & HISTORY =====================
+    maternal_infections = Column(String, default="-")  # HIV, HepB, GBS, syphilis
+    gbs_status = Column(String, default="-")  # Group B Strep
+    maternal_hiv = Column(String, default="-")
+    maternal_hep_b = Column(String, default="-")
+    maternal_syphilis = Column(String, default="-")
+    drug_exposure = Column(String, default="-")  # Drug/medication exposure in pregnancy
+    delivery_method = Column(String, nullable=False)  # Vaginal/C-section/Assisted
+    delivery_complications = Column(String, default="-")
     birth_complications = Column(String, default="-")
     resuscitation_needed = Column(Boolean, default=False)
+    resuscitation_details = Column(String, default="-")
+    family_genetic_history = Column(Text, default="-")
+    prenatal_history = Column(Text, nullable=True)
+    prenatal_care = Column(String, default="-")  # Adequate/Inadequate/None
     
-    # Discharge Data
+    # ===================== DISCHARGE DATA =====================
+    discharge_date = Column(Date, nullable=True)
     discharge_weight = Column(Float, nullable=True)
     discharge_diagnosis = Column(Text, nullable=True)
     follow_up_appointments = Column(Text, nullable=True)
     parent_education = Column(Text, nullable=True)
+    home_care_instructions = Column(Text, nullable=True)
+    screening_results_summary = Column(Text, nullable=True)
     
-    # Care Team
+    # ===================== CARE TEAM =====================
     primary_care_pediatrician = Column(String, nullable=False)
+    attending_physician = Column(String, default="-")
+    primary_nurse = Column(String, default="-")
     
-    # General Notes
+    # ===================== NOTES =====================
     notes = Column(Text, nullable=True)
-    prenatal_history = Column(Text, nullable=True)
     
-    # Timestamps
+    # ===================== TIMESTAMPS =====================
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -191,27 +267,151 @@ class AuthCredentials(BaseModel):
 
 
 class BabyProfileUpdate(BaseModel):
-    """Partial update schema for baby profile"""
+    """Partial update schema for baby profile - All editable fields"""
+    # Identity (some editable for corrections)
     full_name: Optional[str] = None
+    hospital_id_band: Optional[str] = None
+    footprints_taken: Optional[bool] = None
+    
+    # Parent Info Updates
+    parent_contact: Optional[str] = None
+    parent_address: Optional[str] = None
+    emergency_contact: Optional[str] = None
+    mother_id: Optional[str] = None
+    father_id: Optional[str] = None
+    
+    # Measurements (may need updates)
     birth_weight: Optional[float] = None
     length: Optional[float] = None
     head_circumference: Optional[float] = None
+    chest_circumference: Optional[float] = None
+    weight_percentile: Optional[str] = None
+    length_percentile: Optional[str] = None
+    head_percentile: Optional[str] = None
+    
+    # Physical Examination
     muscle_tone: Optional[str] = None
     reflexes: Optional[str] = None
+    moro_reflex: Optional[str] = None
+    rooting_reflex: Optional[str] = None
+    sucking_reflex: Optional[str] = None
+    grasp_reflex: Optional[str] = None
+    stepping_reflex: Optional[str] = None
     alertness_level: Optional[str] = None
+    cry_strength: Optional[str] = None
+    skin_condition: Optional[str] = None
+    birthmarks: Optional[str] = None
+    bruising: Optional[str] = None
+    fontanelle_status: Optional[str] = None
+    eye_exam: Optional[str] = None
+    ear_exam: Optional[str] = None
+    nose_throat_exam: Optional[str] = None
+    genital_exam: Optional[str] = None
+    anus_patency: Optional[str] = None
+    limb_movement: Optional[str] = None
+    spine_check: Optional[str] = None
+    hip_check: Optional[str] = None
+    
+    # Sensory Screening
     hearing_screening: Optional[str] = None
+    hearing_screening_date: Optional[str] = None
     vision_screening: Optional[str] = None
+    red_reflex_right: Optional[str] = None
+    red_reflex_left: Optional[str] = None
+    response_to_stimuli: Optional[str] = None
+    
+    # Cardiorespiratory
     pulse_oximetry: Optional[str] = None
+    pulse_ox_right_hand: Optional[float] = None
+    pulse_ox_foot: Optional[float] = None
+    breathing_pattern: Optional[str] = None
+    lung_sounds: Optional[str] = None
+    heart_sounds: Optional[str] = None
+    heart_murmur_grade: Optional[str] = None
+    
+    # Lab Screening
     metabolic_screening: Optional[str] = None
+    metabolic_screening_date: Optional[str] = None
+    pku_result: Optional[str] = None
+    msud_result: Optional[str] = None
+    galactosemia_result: Optional[str] = None
+    hypothyroidism_result: Optional[str] = None
+    cah_result: Optional[str] = None
+    sickle_cell_result: Optional[str] = None
+    thalassemia_result: Optional[str] = None
+    cystic_fibrosis_result: Optional[str] = None
+    scid_result: Optional[str] = None
+    biotinidase_result: Optional[str] = None
+    genetic_screening_panel: Optional[str] = None
+    blood_glucose: Optional[str] = None
+    bilirubin_level: Optional[str] = None
+    bilirubin_date: Optional[str] = None
+    blood_type: Optional[str] = None
+    rh_factor: Optional[str] = None
+    coombs_test: Optional[str] = None
+    
+    # Immunizations
     vitamin_k_given: Optional[bool] = None
+    vitamin_k_date: Optional[str] = None
     hep_b_vaccine: Optional[bool] = None
+    hep_b_date: Optional[str] = None
+    eye_prophylaxis: Optional[bool] = None
+    eye_prophylaxis_date: Optional[str] = None
+    other_vaccines: Optional[str] = None
+    
+    # Feeding & Elimination
     feeding_method: Optional[str] = None
+    feeding_tolerance: Optional[str] = None
+    feeds_per_day: Optional[int] = None
+    urine_output: Optional[str] = None
+    first_void_time: Optional[str] = None
+    stool_output: Optional[str] = None
+    meconium_passage_time: Optional[str] = None
+    vomiting: Optional[str] = None
+    reflux: Optional[str] = None
+    
+    # Clinical Course
+    bed_assignment: Optional[str] = None
     nicu_admission: Optional[bool] = None
+    nicu_admission_reason: Optional[str] = None
     oxygen_support: Optional[str] = None
+    fio2: Optional[float] = None
+    iv_fluids: Optional[str] = None
     medications: Optional[str] = None
+    antibiotics: Optional[str] = None
+    procedures: Optional[str] = None
+    monitoring_events: Optional[str] = None
+    infection_screening: Optional[str] = None
+    
+    # Risk & History
+    maternal_infections: Optional[str] = None
+    gbs_status: Optional[str] = None
+    maternal_hiv: Optional[str] = None
+    maternal_hep_b: Optional[str] = None
+    maternal_syphilis: Optional[str] = None
+    drug_exposure: Optional[str] = None
+    delivery_complications: Optional[str] = None
+    birth_complications: Optional[str] = None
+    resuscitation_needed: Optional[bool] = None
+    resuscitation_details: Optional[str] = None
+    family_genetic_history: Optional[str] = None
+    prenatal_history: Optional[str] = None
+    prenatal_care: Optional[str] = None
+    
+    # Discharge
+    discharge_date: Optional[str] = None
     discharge_weight: Optional[float] = None
     discharge_diagnosis: Optional[str] = None
     follow_up_appointments: Optional[str] = None
+    parent_education: Optional[str] = None
+    home_care_instructions: Optional[str] = None
+    screening_results_summary: Optional[str] = None
+    
+    # Care Team
+    attending_physician: Optional[str] = None
+    primary_nurse: Optional[str] = None
+    
+    # Notes
     notes: Optional[str] = None
 
 
