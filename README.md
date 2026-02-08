@@ -1,14 +1,34 @@
 # Neovance-AI: Smart NICU Clinical Decision Support
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Status](https://img.shields.io/badge/status-In%20Development-yellow.svg)
-![SepsisAlert](https://img.shields.io/badge/ML%20Model-Sepsis%20Predictor-brightgreen.svg)
+## 30 Hours. 1 Developer. 1 Life-Saving AI. 1st Place at IIT
 
-## The Problem: Alarm Fatigue in the NICU
+Hey.. I built this!
 
-Critically ill newborns in the NICU are monitored 24/7, but traditional alarm systems are notorious for **false alarms**. These systems alert doctors and nurses the moment a single vital sign crosses a fixed threshold, leading to **alarm fatigue**. When every alarm is noisy, clinicians eventually stop listening when it truly matters.
+I recently participated in **Singularity**, a 30-hour AI hackathon at IIT Dharwad powered by **Pathway**. We were expected to "build a real-world AI application using Pathway," & I decided to take up this challenge **ALL BY MYSELF**.
 
-**Neovance-AI is our solution.** We are building a smart clinical assistant that moves beyond simple thresholds. It monitors complex physiological patterns and trends to deliver alerts only when they are **genuinely meaningful** and tied to real patient deterioration (like sepsis).
+I chose a fairly unconventional problem statement in the **MedTech domain**, inspired by a research article on "Artificial & Human Intelligence for Early Identification of Neonatal Sepsis."
+
+### The Problem
+
+Premature newborns don't have fully developed organs & are very prone to infections due to their lack of immunity, & thus are under constant surveillance in a NICU. **Neonatal sepsis** is a bloodstream infection in infants within the first 28 days of life, causing inflammation, organ dysfunction & mortality. But the problem is that newborns do not show clear "infection" symptoms like older children or adults.
+
+Current monitoring systems rely on fixed thresholds: if the heart rate goes too high or too low, or if oxygen levels drop, these systems alert. But these vitals cannot be used solely to conclude sepsis, thus doctors are informed about the baby's condition, for example, the nurse informs, "Baby was restless, didn't feed well, and had trouble breathing." So the doctor considers these & takes necessary action.
+
+### The Solution: Neovance
+
+So I built **Neovance** to bridge this gap where the live data & nurses' observations are no longer independent. Neovance is a real-time clinical decision support system that continuously analyzes live data such as heart rate, respiratory rate, temperature & SpO2 levels along with the observations manually entered by nurses. Using this, the system generates a **"Risk Score"** based on evolving physiological & clinical patterns.
+
+When the risk score crosses a defined threshold, our system alerts the doctor, where they can choose to observe the baby for a specified time, order diagnostic tests, initiate antibiotics, or dismiss the alert. This ensures that the doctors are the final decision-makers & creating a **human-in-the-loop workflow** rather than a fully automated one. Also, our system follows role-based access control, wherein the doctors can view complete patient data, trends, & alert history, while nurses can monitor vitals & act based on the doctor's instructions.
+
+I built the prototype solo within 30 hours using **FastAPI**, **Pathway**, **Next.js** (shadcn/ui, Chart.js), **PostgreSQL**, and **LLM** for ideation & research.
+
+### The Result
+
+After an intensive 30 hours of coding & a presentation round, **Neovance was awarded first place at the hackathon**. Came back with boosted morale & quite some goodies!!
+
+After this hackathon, I'm really driven to start building AI solutions for niche scientific fields where there's so much room for creativity & innovation to be explored by young developers like me. & to you, who is reading this, you could be one too!!
+
+---
 
 ## Our Innovation: The Human-in-the-Loop (HIL) Learning
 
