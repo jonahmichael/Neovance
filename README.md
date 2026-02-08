@@ -2,11 +2,9 @@
 
 ## 30 Hours. 1 Developer. 1 Life-Saving AI. 1st Place at IIT
 
-Hey.. I built this!
+Hey.. I built this! @ **Singularity**, a 30-hour AI hackathon at IIT Dharwad powered by **Pathway**. We were expected to "build a real-world AI application using Pathway," & I decided to take up this challenge **ALL BY MYSELF**.
 
-I recently participated in **Singularity**, a 30-hour AI hackathon at IIT Dharwad powered by **Pathway**. We were expected to "build a real-world AI application using Pathway," & I decided to take up this challenge **ALL BY MYSELF**.
-
-I chose a fairly unconventional problem statement in the **MedTech domain**, inspired by a research article on "Artificial & Human Intelligence for Early Identification of Neonatal Sepsis."
+I chose a problem statement in the **MedTech domain**, inspired by a research article on "Artificial & Human Intelligence for Early Identification of Neonatal Sepsis."
 
 ### The Problem
 
